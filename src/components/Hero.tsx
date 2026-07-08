@@ -46,7 +46,7 @@ export const Hero = () => {
             leading-tight
             text-gray-900
             font-Unbounded
-            w-full  px-10 md:px-0
+            w-full  px-5 md:px-0
           "
         >
           Create Professional Invoices In{" "}
@@ -64,7 +64,7 @@ export const Hero = () => {
             md:text-lg
             text-primary/80
             max-w-2xl
-            px-15 md:px-0
+            px-7 md:px-0
             leading-relaxed
           "
         >
@@ -92,7 +92,7 @@ export const Hero = () => {
         </motion.div>
       </div>
 
-      {/* <motion.div
+      <motion.div
         initial={{ opacity: 0, y: 50 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.5, duration: 0.8 }}
@@ -109,32 +109,6 @@ export const Hero = () => {
             priority
             className="relative w-full h-auto object-cover"
           />
-        </div>
-      </motion.div> */}
-
-      <motion.div
-        initial={{ opacity: 0, y: 50 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.5, duration: 0.8 }}
-        className="relative z-10 mt-14 w-full max-w-6xl px-4"
-      >
-        <div className="relative rounded-2xl border-4 border-accent/30 bg-white overflow-hidden">
-          <div className="absolute -inset-x-10 -top-10 h-20 bg-secondary/30 blur-2xl" />
-
-          <div
-            className="relative overflow-hidden 
-      mask-[linear-gradient(to_bottom,black_60%,transparent_100%)]
-      [-webkit-mask-image:linear-gradient(to_bottom,black_60%,transparent_100%)]"
-          >
-            <Image
-              src={DashboardImg}
-              alt="SwiftInvoice dashboard"
-              width={1920}
-              height={960}
-              priority
-              className="w-full h-auto object-cover"
-            />
-          </div>
         </div>
       </motion.div>
     </section>
