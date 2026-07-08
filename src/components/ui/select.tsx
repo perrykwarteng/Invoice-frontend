@@ -76,7 +76,7 @@ export default function Select({
               key={item}
               role="option"
               aria-selected={item === value}
-              className="p-1.5 bg-bg-soft my-2 rounded-md cursor-pointer hover:bg-accent/10"
+              className="p-1.5 text-accent bg-bg-soft my-2 rounded-md cursor-pointer hover:bg-accent/10"
               onClick={() => handleSelect(item)}
             >
               {item}

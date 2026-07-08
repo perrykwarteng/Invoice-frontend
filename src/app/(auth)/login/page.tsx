@@ -32,7 +32,7 @@ export default function Login() {
       };
       setUserInfo(user);
       setAccessToken(data.data.accessToken);
-      route.push("/dashboard");
+      route.push(user.user.role === "staff" ? "/invoices" : "/dashboard");
     },
     onError: () => {
       toast.error("Sorry Failed to Login, Try again.");
