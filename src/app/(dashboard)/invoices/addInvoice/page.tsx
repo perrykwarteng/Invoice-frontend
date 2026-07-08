@@ -13,7 +13,7 @@ import { Plus, Trash2 } from "lucide-react";
 import { formatMoney } from "./formatMoney";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { getClient } from "@/services/client";
-import { ClientType, PaymentMethod } from "@/types/types";
+import { ClientType, imageUrls, PaymentMethod } from "@/types/types";
 import { toast } from "sonner";
 import { createInvoice } from "@/services/invoice";
 import { useRouter } from "next/navigation";
@@ -34,12 +34,17 @@ export const makeEmptyItem = (): InvoiceItem => ({
   quantity: 1,
   unitPrice: 0,
 });
-
-const getLogoSrc = (logo: File | string | null): string | null => {
+const getLogoSrc = (
+  logo: imageUrls | File | null
+): string | null => {
   if (!logo) return null;
-  return typeof logo === "string" ? logo : URL.createObjectURL(logo);
-};
 
+  if (logo instanceof File) {
+    return URL.createObjectURL(logo);
+  }
+
+  return logo.imageUrl;
+};
 const isSamePaymentMethod = (a: PaymentMethod, b: PaymentMethod): boolean => {
   if (a.paymentType !== b.paymentType) return false;
   if (a.paymentType === "Bank" && b.paymentType === "Bank") {
@@ -56,7 +61,7 @@ type CompanySnapshot = {
   email: string;
   address: string;
   invoicePrefix: string;
-  logo: File | string | null;
+  logo: File | imageUrls | null;
   paymentMethods: PaymentMethod[];
 };
 
@@ -103,20 +108,21 @@ export default function AddInvoice() {
     email: "",
     address: "",
     invoicePrefix: "",
-    logo: null,
+    logo:  null,
     paymentMethods: [],
   });
 
-  useEffect(() => {
-    if (!settingsData) return;
-    setCompanySnapshot((prev) => ({
-      ...prev,
-      name: prev.name || settingsData.companyName || "",
-      email: prev.email || settingsData.companyEmail || "",
-      address: prev.address || settingsData.companyAddress || "",
-      logo: prev.logo || settingsData.companyLogo?.imageUrl || null,
-    }));
-  }, [settingsData]);
+useEffect(() => {
+  if (!settingsData) return;
+
+  setCompanySnapshot((prev) => ({
+    ...prev,
+    name: settingsData.companyName ?? "",
+    email: settingsData.companyEmail ?? "",
+    address: settingsData.companyAddress ?? "",
+    logo: settingsData.companyLogo ?? null,
+  }));
+}, [settingsData]);
 
   const togglePaymentMethod = (method: PaymentMethod) => {
     setCompanySnapshot((prev) => {
@@ -312,8 +318,7 @@ export default function AddInvoice() {
     formData.append("notes", String(summary.notes));
     formData.append("terms", String(summary.terms));
 
-    const { logo, ...snapshotForJson } = companySnapshot;
-    formData.append("companySnapshot", JSON.stringify(snapshotForJson));
+    formData.append("companySnapshot", JSON.stringify(companySnapshot));
 
     formData.append("invoiceItem", JSON.stringify(items));
 
