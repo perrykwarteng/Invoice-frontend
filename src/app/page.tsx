@@ -1,5 +1,6 @@
 "use client";
 
+import { Hero } from "@/components/Hero";
 import Button from "@/components/ui/btn";
 import { useRouter } from "next/navigation";
 
@@ -7,7 +8,7 @@ export default function Home() {
   const router = useRouter();
   return (
     <>
-      <div className="w-full min-h-screen bg-bg-light flex items-center justify-center">
+      {/* <div className="w-full min-h-screen bg-bg-light flex items-center justify-center">
         <div className="w-150 flex gap-3">
           <Button
             variant="primary"
@@ -24,7 +25,9 @@ export default function Home() {
             Register
           </Button>
         </div>
-      </div>
+      </div> */}
+
+      <Hero />
     </>
   );
 }
