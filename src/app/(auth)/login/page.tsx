@@ -65,7 +65,7 @@ export default function Login() {
   return (
     <div className="w-full h-screen bg-bg-light flex flex-col md:flex-row p-5">
       <div className="md:flex-2/4">
-        <div className="">SwiftInvoice.</div>
+        <div className="text-primary">SwiftInvoice.</div>
         <div className="min-h-155 flex items-center justify-center">
           <div className="w-full md:w-[80%] lg:w-[60%]">
             <h3 className="text-3xl font-semibold text-secondary font-Saira">

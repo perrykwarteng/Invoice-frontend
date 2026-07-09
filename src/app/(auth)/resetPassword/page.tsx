@@ -8,24 +8,32 @@ import AuthImage from "@/assets/images/authImage.jpg";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useMutation } from "@tanstack/react-query";
-import { forgetPassword } from "@/services/auth";
+import { resetPassword } from "@/services/auth";
 import { toast } from "sonner";
 
-export default function ForgotPassword() {
+export default function ResetPassword() {
   const router = useRouter();
 
-  const [email, setEmail] = useState("");
+  const email =
+    (typeof window !== "undefined" ? localStorage.getItem("email") : "") || "";
+
+  const [form, setForm] = useState({
+    password: "",
+    confirmPassword: "",
+  });
+
   const [error, setError] = useState("");
 
-  const { mutate: forgetPasswordMutate, isPending: forgetPasswordPending } =
+  const { mutate: resetPasswordMutate, isPending: resetPasswordPending } =
     useMutation({
-      mutationKey: ["ForgotPassword"],
-      mutationFn: forgetPassword,
+      mutationKey: ["ResetPassword"],
+      mutationFn: resetPassword,
       onSuccess: (data) => {
         toast.success(data?.message);
-        localStorage.setItem("email", email);
-        router.push("/verify?type=forgot_password");
+        localStorage.clear();
+        router.push("/login");
       },
+
       onError: (error: any) => {
         toast.error(error?.message || "Something went wrong");
       },
@@ -34,14 +42,24 @@ export default function ForgotPassword() {
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
-    if (!email.trim()) {
-      setError("Email is required");
+    if (!form.password || !form.confirmPassword) {
+      setError("All fields are required");
       return;
     }
-
+    if (form.password.length < 8) {
+      setError("Password must be at least 8 characters");
+      return;
+    }
+    if (form.password !== form.confirmPassword) {
+      setError("Passwords do not match");
+      return;
+    }
+    if (!email) {
+      toast.error("Email noe available");
+    }
     setError("");
 
-    forgetPasswordMutate(email);
+    resetPasswordMutate({ email, newPassword: form.password });
   };
 
   return (
@@ -52,23 +70,46 @@ export default function ForgotPassword() {
         <div className="min-h-155 flex items-center justify-center">
           <div className="w-full md:w-[80%] lg:w-[60%]">
             <h3 className="text-3xl font-semibold text-secondary font-Saira">
-              Forgot Password
+              Reset Password
             </h3>
 
             <p className="text-gray-500 text-sm mt-2">
-              The verification code will be sent to your email.
+              Create a new password for your account.
             </p>
 
             <form className="mt-5" onSubmit={handleSubmit}>
-              <div className="my-2">
+              <div className="my-3">
                 <CustomInput
-                  type="email"
-                  label="Email"
-                  id="email"
-                  placeholder="mark@gmail.com"
-                  value={email}
+                  type="password"
+                  label="New Password"
+                  id="password"
+                  placeholder="********"
+                  value={form.password}
                   onChange={(e) => {
-                    setEmail(e.target.value);
+                    setForm({
+                      ...form,
+                      password: e.target.value,
+                    });
+
+                    if (error) setError("");
+                  }}
+                  error={error}
+                />
+              </div>
+
+              <div className="my-3">
+                <CustomInput
+                  type="password"
+                  label="Confirm Password"
+                  id="confirmPassword"
+                  placeholder="********"
+                  value={form.confirmPassword}
+                  onChange={(e) => {
+                    setForm({
+                      ...form,
+                      confirmPassword: e.target.value,
+                    });
+
                     if (error) setError("");
                   }}
                   error={error}
@@ -77,7 +118,7 @@ export default function ForgotPassword() {
 
               <Link
                 href="/login"
-                className="text-sm text-accent hover:text-primary hover:underline transition-all duration-75"
+                className="text-sm text-accent hover:text-primary hover:underline"
               >
                 Back to Login
               </Link>
@@ -86,9 +127,9 @@ export default function ForgotPassword() {
                 <Button
                   type="submit"
                   variant="primary"
-                  disabled={forgetPasswordPending}
+                  disabled={resetPasswordPending}
                 >
-                  {forgetPasswordPending ? "Sending..." : "Verify Email"}
+                  {resetPasswordPending ? "Resetting..." : "Reset Password"}
                 </Button>
               </div>
             </form>

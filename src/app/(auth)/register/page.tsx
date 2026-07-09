@@ -19,6 +19,7 @@ export default function Register() {
   const route = useRouter();
   const [isChecked, setIsChecked] = useState(false);
   const [formStep, setFormStep] = useState(1);
+  const [email, setEmail] = useState<string>("");
 
   const { mutate: RegisterMutate, isPending } = useMutation({
     mutationKey: ["Organisation Registration"],
@@ -27,7 +28,8 @@ export default function Register() {
       const userId = data.data.userId;
       toast.success("Registered Successfully");
       localStorage.setItem("userId", userId);
-      route.push("/verify");
+      localStorage.setItem("email", email);
+      route.push(`/verify?type=register`);
     },
     onError: (data) => {
       toast.error("Failed Registering Organisation");
@@ -249,6 +251,7 @@ export default function Register() {
                               shouldValidate: true,
                               shouldDirty: true,
                             });
+                            setEmail(e.target.value);
                           }}
                           error={errors.adminEmail?.message}
                         />
