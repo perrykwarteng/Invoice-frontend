@@ -96,7 +96,7 @@ export const Hero = () => {
             </Button>
           </div>
 
-          <div className="w-40">
+          <div className="w-45">
             <Button variant="primary">See How it Works</Button>
           </div>
         </motion.div>
