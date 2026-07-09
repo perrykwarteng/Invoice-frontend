@@ -97,9 +97,7 @@ export const Hero = () => {
           </div>
 
           <div className="w-40">
-            <Button variant="primary" onClick={() => route.push("/login")}>
-              Login
-            </Button>
+            <Button variant="primary">See How it Works</Button>
           </div>
         </motion.div>
       </div>
