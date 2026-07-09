@@ -21,13 +21,39 @@ export const onLogout = async () => {
 };
 
 type optType = {
-  otp: string;
-  userId: number;
+  otp?: string;
+  userId?: number;
+  type?: string;
 };
 
-export const verifyOtp = async ({ otp, userId }: optType) => {
-  const res = await api.post("/auth/verifyOtp", { otp, userId });
-  console.log(res.data);
+type resetPasswordType = {
+  email: string;
+  newPassword?: string;
+};
+
+export const verifyOtp = async ({ otp, userId, type }: optType) => {
+  const res = await api.post("/auth/verifyOtp", { otp, userId, type });
+
+  return res.data;
+};
+
+export const resendOtp = async ({ userId, type }: optType) => {
+  const res = await api.post("/auth/resendOtp", { userId, type });
+
+  return res.data;
+};
+
+export const forgetPassword = async (email: string) => {
+  const res = await api.post("/auth/forgetPassword", { email });
+
+  return res.data;
+};
+
+export const resetPassword = async ({
+  email,
+  newPassword,
+}: resetPasswordType) => {
+  const res = await api.post("/auth/resetPassword", { email, newPassword });
 
   return res.data;
 };
