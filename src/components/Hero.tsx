@@ -10,17 +10,15 @@ export const Hero = () => {
     "https://res.cloudinary.com/dipfghq3k/image/upload/v1783533589/InvoiceDash_zfgyck.png";
 
   return (
-    <section className="min-h-screen w-full relative overflow-hidden flex flex-col items-center justify-center px-4 pt-28 pb-20">
-      <div className="absolute w-32 h-32 md:w-72 md:h-72 bg-primary rounded-full blur-3xl -right-10 top-20 opacity-30 md:opacity-60" />
+    <section className="min-h-screen w-full relative overflow-hidden flex flex-col items-center justify-center px-4 pt-28 pb-20 bg-white">
+      <div className="absolute inset-0 overflow-hidden">
+        <div className="absolute w-72 h-72 bg-primary rounded-full blur-3xl -right-20 top-20 opacity-15" />
+        <div className="absolute w-72 h-72 bg-dark rounded-full blur-3xl -left-20 top-32 opacity-15" />
+        <div className="absolute w-96 h-96 bg-secondary rounded-full blur-3xl left-1/3 top-40 opacity-15" />
+        <div className="absolute w-96 h-96 bg-accent rounded-full blur-3xl right-1/4 top-80 opacity-15" />
+      </div>
 
-      <div className="absolute w-32 h-32 md:w-72 md:h-72 bg-deep-red rounded-full blur-3xl -left-10 top-24 opacity-30 md:opacity-60" />
-
-      <div className="absolute w-24 h-24 md:w-96 md:h-96 bg-secondary rounded-full blur-3xl left-1/3 -translate-x-1/2 top-40 opacity-20 md:opacity-50" />
-
-      <div className="absolute w-48 h-48 md:w-96 md:h-96 bg-blood-red rounded-full blur-3xl right-1/4 top-80 opacity-20 md:opacity-40" />
-
-      <div className="absolute inset-0 bg-white/90 md:bg-white/70 backdrop-blur-xl md:backdrop-blur-2xl" />
-
+      <div className="absolute inset-0 bg-white/30 backdrop-blur-2xl" />
       <div
         className="
           absolute top-1/2 left-1/2 
@@ -81,9 +79,9 @@ export const Hero = () => {
             leading-relaxed
           "
         >
-          Meet SwiftInvoice, the simple way to create and track invoices for
+          {/* Meet SwiftInvoice, the simple way to create and track invoices for
           your business. Manage clients, monitor drafts and overdues faster all
-          from one clean dashboard.
+          from one clean dashboard. */}
         </motion.p>
 
         <motion.div
@@ -112,7 +110,7 @@ export const Hero = () => {
         transition={{ delay: 0.5, duration: 0.8 }}
         className="relative z-10 mt-14 w-full max-w-6xl px-4"
       >
-        <div className="relative rounded-2xl border-4 border-accent/30 bg-white/95 overflow-hidden shadow-xl">
+        <div className="relative rounded-2xl border-4 border-accent/30 bg-white/95 overflow-hidden">
           <div className="absolute -inset-x-10 -top-10 h-20 bg-secondary/30 blur-2xl" />
 
           <Image

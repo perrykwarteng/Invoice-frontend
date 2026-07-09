@@ -34,7 +34,7 @@ export const ConfirmationModal = ({
           <button
             onClick={onCancel}
             disabled={loading}
-            className="rounded-lg border border-accent/30 px-4 py-2 hover:bg-gray-100"
+            className="rounded-lg border border-accent/30 px-4 py-2 text-accent hover:bg-gray-100"
           >
             {cancelText}
           </button>

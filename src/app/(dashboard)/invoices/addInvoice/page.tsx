@@ -34,9 +34,7 @@ export const makeEmptyItem = (): InvoiceItem => ({
   quantity: 1,
   unitPrice: 0,
 });
-const getLogoSrc = (
-  logo: imageUrls | File | null
-): string | null => {
+const getLogoSrc = (logo: imageUrls | File | null): string | null => {
   if (!logo) return null;
 
   if (logo instanceof File) {
@@ -108,21 +106,21 @@ export default function AddInvoice() {
     email: "",
     address: "",
     invoicePrefix: "",
-    logo:  null,
+    logo: null,
     paymentMethods: [],
   });
 
-useEffect(() => {
-  if (!settingsData) return;
+  useEffect(() => {
+    if (!settingsData) return;
 
-  setCompanySnapshot((prev) => ({
-    ...prev,
-    name: settingsData.companyName ?? "",
-    email: settingsData.companyEmail ?? "",
-    address: settingsData.companyAddress ?? "",
-    logo: settingsData.companyLogo ?? null,
-  }));
-}, [settingsData]);
+    setCompanySnapshot((prev) => ({
+      ...prev,
+      name: settingsData.companyName ?? "",
+      email: settingsData.companyEmail ?? "",
+      address: settingsData.companyAddress ?? "",
+      logo: settingsData.companyLogo ?? null,
+    }));
+  }, [settingsData]);
 
   const togglePaymentMethod = (method: PaymentMethod) => {
     setCompanySnapshot((prev) => {
@@ -412,7 +410,7 @@ useEffect(() => {
                 />
                 <label
                   htmlFor="manualInvNumber"
-                  className="text-sm sm:text-base"
+                  className="text-sm sm:text-base text-accent"
                 >
                   Set Custom Invoice Number
                 </label>
@@ -568,17 +566,19 @@ useEffect(() => {
                 <h3 className="text-accent text-xl sm:text-2xl font-medium">
                   Invoice Items
                 </h3>
-                <div className="w-full xs:w-35">
-                  <Button
-                    variant="outline"
-                    className="group w-full xs:w-auto"
-                    leftIcon={
-                      <Plus className="w-4 h-4 transition-transform duration-150 group-hover:rotate-90" />
-                    }
-                    onClick={addItem}
-                  >
-                    Add Item
-                  </Button>
+                <div className="w-full flex justify-end">
+                  <div className="w-full md:w-35">
+                    <Button
+                      variant="outline"
+                      className="group w-full xs:w-auto"
+                      leftIcon={
+                        <Plus className="w-4 h-4 transition-transform duration-150 group-hover:rotate-90" />
+                      }
+                      onClick={addItem}
+                    >
+                      Add Item
+                    </Button>
+                  </div>
                 </div>
               </div>
 
@@ -745,7 +745,7 @@ useEffect(() => {
               <div className="flex-1 bg-accent/5 rounded-lg p-4 space-y-2 h-fit">
                 <div className="flex items-center justify-between text-sm">
                   <span className="text-gray-600">Subtotal</span>
-                  <span className="font-medium">
+                  <span className="font-medium text-accent">
                     {formatMoney(totals.subtotal, form.currency)}
                   </span>
                 </div>
@@ -759,7 +759,7 @@ useEffect(() => {
                   <span className="text-gray-600">
                     VAT ({summary.vatPercentage || 0}%)
                   </span>
-                  <span className="font-medium">
+                  <span className="font-medium text-accent">
                     {formatMoney(totals.vatAmount, form.currency)}
                   </span>
                 </div>
@@ -767,7 +767,7 @@ useEffect(() => {
                   <span className="text-gray-600">
                     NHIL ({summary.nhilPercentage || 0}%)
                   </span>
-                  <span className="font-medium">
+                  <span className="font-medium text-accent">
                     {formatMoney(totals.nhilAmount, form.currency)}
                   </span>
                 </div>
@@ -775,7 +775,7 @@ useEffect(() => {
                   <span className="text-gray-600">
                     GETFund ({summary.getfundPercentage || 0}%)
                   </span>
-                  <span className="font-medium">
+                  <span className="font-medium text-accent">
                     {formatMoney(totals.getfundAmount, form.currency)}
                   </span>
                 </div>
@@ -868,7 +868,7 @@ useEffect(() => {
                   Notes
                 </label>
                 <textarea
-                  className="w-full rounded-md border border-accent/30 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-accent/40 min-h-25"
+                  className="w-full rounded-md border border-accent/30 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-accent/40 min-h-25 text-accent"
                   placeholder="Thank you for your business..."
                   value={summary.notes}
                   maxLength={1000}
@@ -881,7 +881,7 @@ useEffect(() => {
                   Terms
                 </label>
                 <textarea
-                  className="w-full rounded-md border border-accent/30 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-accent/40 min-h-25"
+                  className="w-full rounded-md border border-accent/30 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-accent/40 min-h-25 text-accent"
                   placeholder="Payment due within 14 days..."
                   value={summary.terms}
                   maxLength={1000}
@@ -1020,12 +1020,12 @@ useEffect(() => {
                           key={item.id}
                           className="grid grid-cols-[1fr_50px_90px_90px] gap-x-4 sm:gap-x-10 text-sm px-3 sm:px-7 mt-1"
                         >
-                          <span className="truncate">{item.itemName}</span>
-                          <span className="text-right">{item.quantity}</span>
-                          <span className="text-right">
+                          <span className="truncate text-accent">{item.itemName}</span>
+                          <span className="text-right text-accent">{item.quantity}</span>
+                          <span className="text-right text-accent">
                             {formatMoney(item.unitPrice, form.currency)}
                           </span>
-                          <span className="text-right font-medium">
+                          <span className="text-right font-medium text-accent">
                             {formatMoney(
                               item.quantity * item.unitPrice,
                               form.currency,
@@ -1046,7 +1046,7 @@ useEffect(() => {
                 <div className="space-y-1.5">
                   <div className="flex items-center justify-between text-sm">
                     <span className="text-gray-600">Subtotal</span>
-                    <span>{formatMoney(totals.subtotal, form.currency)}</span>
+                    <span className="text-accent">{formatMoney(totals.subtotal, form.currency)}</span>
                   </div>
                   <div className="flex items-center justify-between text-sm">
                     <span className="text-gray-600">Discount</span>
@@ -1062,7 +1062,7 @@ useEffect(() => {
                         summary?.nhilPercentage}
                       %
                     </span>
-                    <span className="shrink-0">
+                    <span className="shrink-0 text-accent">
                       {formatMoney(totals.taxAmount, form.currency)}
                     </span>
                   </div>

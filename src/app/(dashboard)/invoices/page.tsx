@@ -966,7 +966,7 @@ export default function Invoice() {
                 <div className="flex-1 bg-accent/5 rounded-lg p-4 space-y-2 h-fit">
                   <div className="flex items-center justify-between text-sm">
                     <span className="text-gray-600">Subtotal</span>
-                    <span className="font-medium">
+                    <span className="font-medium text-accent">
                       {form.currency} {totals.subtotal.toLocaleString()}
                     </span>
                   </div>
@@ -980,7 +980,7 @@ export default function Invoice() {
                     <span className="text-gray-600">
                       VAT ({summary.vatPercentage || 0}%)
                     </span>
-                    <span className="font-medium">
+                    <span className="font-medium text-accent">
                       {form.currency} {totals.vatAmount.toLocaleString()}
                     </span>
                   </div>
@@ -988,7 +988,7 @@ export default function Invoice() {
                     <span className="text-gray-600">
                       NHIL ({summary.nhilPercentage || 0}%)
                     </span>
-                    <span className="font-medium">
+                    <span className="font-medium text-accent">
                       {form.currency} {totals.nhilAmount.toLocaleString()}
                     </span>
                   </div>
@@ -996,7 +996,7 @@ export default function Invoice() {
                     <span className="text-gray-600">
                       GETFund ({summary.getfundPercentage || 0}%)
                     </span>
-                    <span className="font-medium">
+                    <span className="font-medium text-accent">
                       {form.currency} {totals.getfundAmount.toLocaleString()}
                     </span>
                   </div>
@@ -1090,7 +1090,7 @@ export default function Invoice() {
                     Notes
                   </label>
                   <textarea
-                    className="w-full rounded-md border border-accent/30 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-accent/40 min-h-25"
+                    className="w-full rounded-md border border-accent/30 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-accent/40 min-h-25 text-accent"
                     placeholder="Thank you for your business..."
                     value={summary.notes}
                     maxLength={1000}
@@ -1105,7 +1105,7 @@ export default function Invoice() {
                     Terms
                   </label>
                   <textarea
-                    className="w-full rounded-md border border-accent/30 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-accent/40 min-h-25"
+                    className="w-full rounded-md border border-accent/30 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-accent/40 min-h-25 text-accent"
                     placeholder="Payment due within 14 days..."
                     value={summary.terms}
                     maxLength={1000}

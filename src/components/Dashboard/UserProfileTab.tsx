@@ -1,9 +1,14 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useMutation } from "@tanstack/react-query";
+import { toast } from "sonner";
+
 import Button from "../ui/btn";
 import CustomInput from "../ui/Input";
 import { useUserStore } from "@/store/useUserStore";
+import { imageUrls } from "@/types/types";
+import { updateUserProfile } from "@/services/settings";
 
 export default function UserProfileTab() {
   const { user } = useUserStore();
@@ -15,25 +20,33 @@ export default function UserProfileTab() {
     isActive: false,
   });
 
-  const [avatar, setAvatar] = useState<File | null>(null);
-  const [avatarPreview, setAvatarPreview] = useState<string | null>(
-    user.profilePic?.imageUrl ?? "",
-  );
+  const [avatar, setAvatar] = useState<File | imageUrls | null>(null);
+  const [avatarPreview, setAvatarPreview] = useState("");
 
   useEffect(() => {
-    if (user) {
-      setForm({
-        name: user.name ?? "",
-        email: user.email ?? "",
-        role: user.role ?? "staff",
-        isActive: user.isActive ?? false,
-      });
+    if (!user) return;
 
-      setAvatarPreview(user.profilePic?.imageUrl ?? "");
-    }
+    setForm({
+      name: user.name ?? "",
+      email: user.email ?? "",
+      role: user.role ?? "staff",
+      isActive: user.isActive ?? false,
+    });
+
+    setAvatar(user.profilePic ?? null);
+    setAvatarPreview(user.profilePic?.imageUrl ?? "");
   }, [user]);
 
-  const [saving, setSaving] = useState(false);
+  const { mutate: updateMutate, isPending: updatePending } = useMutation({
+    mutationKey: ["UpdateUserProfile"],
+    mutationFn: updateUserProfile,
+    onSuccess: (data) => {
+      toast.success(data?.message);
+    },
+    onError: (error: any) => {
+      toast.error(error?.message || "Failed to update profile.");
+    },
+  });
 
   const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -42,25 +55,21 @@ export default function UserProfileTab() {
 
     setAvatar(file);
 
-    const preview = URL.createObjectURL(file);
-    setAvatarPreview(preview);
+    setAvatarPreview(URL.createObjectURL(file));
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
-    setSaving(true);
+    const formData = new FormData();
 
-    try {
-      const data = new FormData();
+    if (avatar instanceof File) {
+      formData.append("profilePic", avatar);
+    } else if (avatar) {
+      formData.append("profileImage", avatar.imageUrl);
+    }
 
-      if (avatar) {
-        data.append("profilePic", avatar);
-      }
-      console.log("Submitted:", {
-        avatar,
-      });
-    } catch (err) {}
+    updateMutate(formData);
   };
 
   return (
@@ -73,7 +82,7 @@ export default function UserProfileTab() {
 
       <form onSubmit={handleSubmit} className="mt-6 space-y-5">
         <div className="flex items-center gap-4">
-          <div className="h-16 w-16 overflow-hidden rounded-full border bg-gray-100 flex items-center justify-center">
+          <div className="flex h-16 w-16 items-center justify-center overflow-hidden rounded-full border bg-gray-100">
             {avatarPreview ? (
               <img
                 src={avatarPreview}
@@ -81,7 +90,7 @@ export default function UserProfileTab() {
                 className="h-full w-full object-cover"
               />
             ) : (
-              <span className="text-gray-400 text-center">
+              <span className="text-center text-gray-400">
                 {form.name ? form.name.charAt(0).toUpperCase() : "No Image"}
               </span>
             )}
@@ -89,8 +98,8 @@ export default function UserProfileTab() {
 
           <div>
             <input
-              type="file"
               id="avatar"
+              type="file"
               accept="image/*"
               className="hidden"
               onChange={handleAvatarChange}
@@ -113,10 +122,10 @@ export default function UserProfileTab() {
             disabled
             placeholder="Name"
             onChange={(e) =>
-              setForm({
-                ...form,
+              setForm((prev) => ({
+                ...prev,
                 name: e.target.value,
-              })
+              }))
             }
           />
 
@@ -128,10 +137,10 @@ export default function UserProfileTab() {
             disabled
             placeholder="Email"
             onChange={(e) =>
-              setForm({
-                ...form,
+              setForm((prev) => ({
+                ...prev,
                 email: e.target.value,
-              })
+              }))
             }
           />
         </div>
@@ -146,6 +155,7 @@ export default function UserProfileTab() {
                 {form.role === "org_admin" && "Organisation Admin"}
                 {form.role === "staff" && "Staff"}
               </p>
+
               <p className="mt-1 text-xs text-gray-500">User access level</p>
             </div>
           </div>
@@ -158,22 +168,22 @@ export default function UserProfileTab() {
             <div className="mt-1 rounded-lg border border-gray-200 bg-gray-50 px-4 py-3">
               <span
                 className={`inline-flex items-center rounded-full text-sm font-medium ${
-                  form.isActive ? " text-green-700" : "text-red-700"
+                  form.isActive ? "text-green-700" : "text-red-700"
                 }`}
               >
                 {form.isActive ? "Active" : "Inactive"}
               </span>
 
               <p className="mt-1 text-xs text-gray-500">
-                Account is Current Active
+                Account is currently active
               </p>
             </div>
           </div>
         </div>
 
         <div className="flex justify-end">
-          <Button type="submit" variant="primary" disabled={saving}>
-            {saving ? "Saving..." : "Save changes"}
+          <Button type="submit" variant="primary" disabled={updatePending}>
+            {updatePending ? "Saving..." : "Save changes"}
           </Button>
         </div>
       </form>
