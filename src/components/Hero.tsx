@@ -79,9 +79,9 @@ export const Hero = () => {
             leading-relaxed
           "
         >
-          {/* Meet SwiftInvoice, the simple way to create and track invoices for
+          Meet SwiftInvoice, the simple way to create and track invoices for
           your business. Manage clients, monitor drafts and overdues faster all
-          from one clean dashboard. */}
+          from one clean dashboard.
         </motion.p>
 
         <motion.div
