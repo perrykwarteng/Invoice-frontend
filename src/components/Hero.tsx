@@ -100,13 +100,19 @@ export const Hero = () => {
             <Button variant="primary">See How it Works</Button>
           </div>
         </motion.div>
+
+        <div className="mt-5 flex flex-wrap items-center justify-center gap-4 text-center md:justify-start md:gap-x-6 text-accent font-medium">
+          <p>REAL-TIME TAX CALCULATION</p>
+          <p>LIVE INVOICE PREVIEW</p>
+          <p>INSTANT EMAIL DELIVERY</p>
+        </div>
       </div>
 
       <motion.div
         initial={{ opacity: 0, y: 50 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.5, duration: 0.8 }}
-        className="relative z-10 mt-14 w-full max-w-6xl px-4"
+        className="relative z-10 mt-10 w-full max-w-6xl px-4"
       >
         <div className="relative rounded-2xl border-4 border-accent/30 bg-white/95 overflow-hidden">
           <div className="absolute -inset-x-10 -top-10 h-20 bg-secondary/30 blur-2xl" />

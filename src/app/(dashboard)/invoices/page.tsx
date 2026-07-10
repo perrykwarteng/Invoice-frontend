@@ -1013,14 +1013,14 @@ export default function Invoice() {
               <div className="w-full h-0.5 bg-accent/30"></div>
 
               {settingsData?.paymentMethod &&
-                settingsData.paymentMethod.length > 0 && (
+                settingsData?.paymentMethod?.length > 0 && (
                   <div className="mt-4 sm:mt-5">
                     <h3 className="text-accent text-xl sm:text-2xl font-medium mb-3">
                       Payment Method
                     </h3>
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      {(settingsData.paymentMethod as PaymentMethod[]).map(
+                      {(settingsData?.paymentMethod as PaymentMethod[]).map(
                         (method, index) => {
                           const isSelected =
                             companySnapshot.paymentMethods.some((m) =>

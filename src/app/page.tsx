@@ -8,7 +8,7 @@ export default function Home() {
   const router = useRouter();
   return (
     <>
-    <Navbar/>
+      <Navbar />
       <Hero />
     </>
   );
