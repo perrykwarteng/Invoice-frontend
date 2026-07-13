@@ -34,8 +34,8 @@ export default function ResetPassword() {
         router.push("/login");
       },
 
-      onError: (error: any) => {
-        toast.error(error?.message || "Something went wrong");
+      onError: (data) => {
+        toast.error(data.message);
       },
     });
 

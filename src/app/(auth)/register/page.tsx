@@ -32,7 +32,7 @@ export default function Register() {
       route.push(`/verify?type=register`);
     },
     onError: (data) => {
-      toast.error("Failed Registering Organisation");
+      toast.error(data.message);
     },
   });
 

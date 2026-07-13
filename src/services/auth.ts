@@ -1,23 +1,48 @@
 import { api } from "@/lib/axois";
 import { LoginResponse } from "@/types/types";
 import { LoginData, RegisterData } from "@/utils/Zod";
+import { AxiosError } from "axios";
 
 export const onRegister = async (data: RegisterData) => {
-  const res = await api.post("/auth/register", data);
+  try {
+    const res = await api.post("/auth/register", data);
 
-  return res.data;
+    return res.data;
+  } catch (error) {
+    const err = error as AxiosError;
+    if (err.response) {
+      throw err.response.data;
+    }
+    throw new Error(err.message);
+  }
 };
 
 export const onLogin = async (data: LoginData): Promise<LoginResponse> => {
-  const res = await api.post("/auth/login", data);
+  try {
+    const res = await api.post("/auth/login", data);
 
-  return res.data;
+    return res.data;
+  } catch (error) {
+    const err = error as AxiosError;
+    if (err.response) {
+      throw err.response.data;
+    }
+    throw new Error(err.message);
+  }
 };
 
 export const onLogout = async () => {
-  const res = await api.post("/auth/logout");
+  try {
+    const res = await api.post("/auth/logout");
 
-  return res.data;
+    return res.data;
+  } catch (error) {
+    const err = error as AxiosError;
+    if (err.response) {
+      throw err.response.data;
+    }
+    throw new Error(err.message);
+  }
 };
 
 type optType = {
@@ -32,28 +57,59 @@ type resetPasswordType = {
 };
 
 export const verifyOtp = async ({ otp, userId, type }: optType) => {
-  const res = await api.post("/auth/verifyOtp", { otp, userId, type });
+  try {
+    const res = await api.post("/auth/verifyOtp", { otp, userId, type });
 
-  return res.data;
+    return res.data;
+  } catch (error) {
+    const err = error as AxiosError;
+    if (err.response) {
+      throw err.response.data;
+    }
+    throw new Error(err.message);
+  }
 };
 
 export const resendOtp = async ({ userId, type }: optType) => {
-  const res = await api.post("/auth/resendOtp", { userId, type });
+  try {
+    const res = await api.post("/auth/resendOtp", { userId, type });
 
-  return res.data;
+    return res.data;
+  } catch (error) {
+    const err = error as AxiosError;
+    if (err.response) {
+      throw err.response.data;
+    }
+    throw new Error(err.message);
+  }
 };
 
 export const forgetPassword = async (email: string) => {
-  const res = await api.post("/auth/forgetPassword", { email });
+  try {
+    const res = await api.post("/auth/forgetPassword", { email });
 
-  return res.data;
+    return res.data;
+  } catch (error) {
+    const err = error as AxiosError;
+    if (err.response) {
+      throw err.response.data;
+    }
+    throw new Error(err.message);
+  }
 };
 
 export const resetPassword = async ({
   email,
   newPassword,
 }: resetPasswordType) => {
-  const res = await api.post("/auth/resetPassword", { email, newPassword });
-
-  return res.data;
+  try {
+    const res = await api.post("/auth/resetPassword", { email, newPassword });
+    return res.data;
+  } catch (error) {
+    const err = error as AxiosError;
+    if (err.response) {
+      throw err.response.data;
+    }
+    throw new Error(err.message);
+  }
 };

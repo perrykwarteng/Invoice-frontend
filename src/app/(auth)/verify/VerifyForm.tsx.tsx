@@ -40,8 +40,8 @@ export default function Verify() {
       toast.success("Verified OTP successfully");
       route.push(`${type === "register" ? "/login" : "/resetPassword"}`);
     },
-    onError: (error: any) => {
-      toast.error(error?.response?.data?.message || "Invalid or expired OTP");
+    onError: (data) => {
+      toast.error(data.message);
     },
   });
 

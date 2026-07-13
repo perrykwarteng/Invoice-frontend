@@ -34,8 +34,8 @@ export default function Login() {
       setAccessToken(data.data.accessToken);
       route.push(user.user.role === "staff" ? "/invoices" : "/dashboard");
     },
-    onError: () => {
-      toast.error("Sorry Failed to Login, Try again.");
+    onError: (data) => {
+      toast.error(data.message);
     },
   });
 
