@@ -294,34 +294,41 @@ export async function generateInvoicePDF(
 
   let y = MARGIN;
 
-  /* ---- Letterhead ---- */
+  let letterHeadHeight = 0;
+
   if (invoiceCustomization.showLetterHead && letterHeadBase64) {
-    addImageSafe(doc, letterHeadBase64, 0, 0, PAGE_W, 42);
-    y = 38 + 8;
+    const props = doc.getImageProperties(letterHeadBase64);
+    letterHeadHeight = (PAGE_W * props.height) / props.width;
+
+    addImageSafe(doc, letterHeadBase64, 0, 0, PAGE_W, letterHeadHeight);
+    y = letterHeadHeight + 8;
   }
 
   /* ---- Header ---- */
   const headerTop = y;
+
   doc.setTextColor(ar, ag, ab);
   doc.setFont("helvetica", "normal");
   doc.setFontSize(26);
-  doc.text("Invoice", MARGIN, y + 8);
+  doc.text("Invoice", MARGIN, headerTop + 8);
 
   doc.setFontSize(11);
   doc.setFont("helvetica", "bold");
-  doc.text("Invoice Number:", MARGIN, y + 16);
+  doc.text("Invoice Number:", MARGIN, headerTop + 16);
+
   doc.setFont("helvetica", "normal");
   doc.setTextColor(90, 90, 90);
   doc.text(
     (form.invoiceNumber || "").toUpperCase(),
     MARGIN + doc.getTextWidth("Invoice Number: ") + 1,
-    y + 16,
+    headerTop + 16,
   );
 
   if (invoiceCustomization.showLogo) {
     const d = 20;
     drawLogoBadge(doc, logoBase64, PAGE_W - MARGIN - d, headerTop, d);
   }
+
   y = headerTop + 28;
 
   /* ---- Issue / Due dates ---- */
