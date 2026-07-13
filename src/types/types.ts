@@ -120,7 +120,7 @@ export interface SingleInvoice {
   terms: string;
   createdAt: string;
   updatedAt: string;
-
+  invoiceCustomization: InvoiceCustomization;
   companySnapshot: CompanySnapshot;
   clientInfo: ClientType;
   items: InvoiceItems[];
@@ -154,4 +154,20 @@ export type OrgSettingsType = {
   companyLogo: imageUrls;
   invoiceFooter: string | null;
   extras: Record<string, any> | null;
+};
+
+export type InvoiceCustomization = {
+  primaryColor: string | null;
+  secondaryColor: string | null;
+  letterHeadImg: imageUrls | string | null;
+  signatureImg: imageUrls | string | null;
+
+  showLogo: boolean;
+  showLetterHead: boolean;
+  showSignature: boolean;
+  showCompanySnapshot: boolean;
+  showPaymentMethods: boolean;
+  showNotes: boolean;
+  showTerms: boolean;
+  showItemTable: boolean;
 };

@@ -1,468 +1,624 @@
-import { imageUrls, PaymentMethod } from "@/types/types";
 import jsPDF from "jspdf";
+import type { ClientType, imageUrls, PaymentMethod } from "@/types/types";
 
-export interface InvoiceItem {
-  id: string | number;
+export type PdfImageSource = File | imageUrls | string | null;
+
+export interface PdfInvoiceItem {
+  id: string;
   itemName: string;
   quantity: number;
   unitPrice: number;
 }
 
-export interface CompanySnapshot {
-  name?: string;
+export interface PdfCompanySnapshot {
+  name: string;
   email: string;
-  address?: string;
-  invoicePrefix?: string;
-  paymentMethods?: PaymentMethod[];
-  logo?: File | imageUrls | null;
+  address: string;
+  invoicePrefix: string;
+  paymentMethods: PaymentMethod[];
+  logo: File | imageUrls | null;
 }
 
-export interface ClientDetails {
-  name?: string;
-  email?: string;
-  address?: string;
-}
-
-export interface InvoiceFormData {
-  invoiceNumber: string;
-  issueDate?: string;
-  dueDate?: string;
-  currency: string;
-}
-
-export interface InvoiceSummary {
+export interface PdfSummary {
+  discountValue: number;
   vatPercentage: number;
-  getfundPercentage: number;
   nhilPercentage: number;
-  notes?: string;
-  terms?: string;
+  getfundPercentage: number;
+  notes: string;
+  terms: string;
 }
 
-export interface InvoiceTotals {
+export interface PdfTotals {
   subtotal: number;
   discountValue: number;
+  vatAmount: number;
+  nhilAmount: number;
+  getfundAmount: number;
   taxAmount: number;
   totalAmount: number;
 }
 
-export interface GenerateInvoicePdfParams {
-  form: InvoiceFormData;
-  companySnapshot: CompanySnapshot;
-  clientDetails?: ClientDetails;
-  items: InvoiceItem[];
-  totals: InvoiceTotals;
-  summary: InvoiceSummary;
-  accentColor?: string;
-  fallbackLogoUrl?: string;
+export interface PdfInvoiceCustomization {
+  primaryColor: string | null;
+  secondaryColor: string | null;
+  letterHeadImg: PdfImageSource;
+  signatureImg: PdfImageSource;
+  showLogo: boolean;
+  showLetterHead: boolean;
+  showSignature: boolean;
+  showCompanySnapshot: boolean;
+  showPaymentMethods: boolean;
+  showNotes: boolean;
+  showTerms: boolean;
+  showItemTable: boolean;
 }
 
-const formatMoney = (value: number, currency: string) =>
-  new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: currency || "USD",
-    minimumFractionDigits: 2,
-  }).format(value || 0);
+export interface DownloadInvoicePdfOptions {
+  form: {
+    invoiceNumber: string;
+    issueDate?: string;
+    dueDate?: string;
+    currency: string;
+  };
+  companySnapshot: PdfCompanySnapshot;
+  clientDetails?: ClientType;
+  items: PdfInvoiceItem[];
+  totals: PdfTotals;
+  summary: PdfSummary;
+  invoiceCustomization: PdfInvoiceCustomization;
+  accentColor?: string;
+  fallbackLogoUrl?: string;
+  formatMoney?: (amount: number, currency: string) => string;
+  filename?: string;
+}
 
-const hexToRgb = (hex: string): [number, number, number] => {
+function isImageUrlsObject(value: unknown): value is imageUrls {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    "imageUrl" in (value as Record<string, unknown>)
+  );
+}
+
+async function blobToBase64(blob: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = () => reject(reader.error);
+    reader.readAsDataURL(blob);
+  });
+}
+
+async function resolveImageToBase64(
+  source: PdfImageSource,
+  label = "image",
+): Promise<string | null> {
+  if (!source) return null;
+
+  try {
+    if (source instanceof File) {
+      return await blobToBase64(source);
+    }
+
+    const url = isImageUrlsObject(source) ? source.imageUrl : source;
+    if (!url) return null;
+    if (url.startsWith("data:")) return url;
+
+    const res = await fetch(url);
+    if (!res.ok) {
+      console.warn(
+        `[invoiceGenerator] Failed to fetch ${label} (${res.status} ${res.statusText}): ${url}`,
+      );
+      return null;
+    }
+    const blob = await res.blob();
+    return await blobToBase64(blob);
+  } catch (err) {
+    console.warn(`[invoiceGenerator] Failed to resolve ${label}:`, err);
+    return null;
+  }
+}
+
+function cropImageToCircle(base64: string, size = 256): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement("canvas");
+      canvas.width = size;
+      canvas.height = size;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) {
+        reject(new Error("Canvas 2D context unavailable"));
+        return;
+      }
+      ctx.clearRect(0, 0, size, size);
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(size / 2, size / 2, size / 2, 0, Math.PI * 2);
+      ctx.closePath();
+      ctx.clip();
+
+      const scale = Math.max(size / img.width, size / img.height);
+      const w = img.width * scale;
+      const h = img.height * scale;
+      ctx.drawImage(img, (size - w) / 2, (size - h) / 2, w, h);
+      ctx.restore();
+
+      resolve(canvas.toDataURL("image/png"));
+    };
+    img.onerror = () => reject(new Error("Failed to load image for cropping"));
+    img.src = base64;
+  });
+}
+
+const PAGE_W = 210;
+const PAGE_H = 297;
+const MARGIN = 14;
+const CONTENT_W = PAGE_W - MARGIN * 2;
+
+function hexToRgb(hex: string): [number, number, number] {
   const clean = hex.replace("#", "");
-  const bigint = parseInt(
+  const full =
     clean.length === 3
       ? clean
           .split("")
           .map((c) => c + c)
           .join("")
-      : clean,
-    16,
-  );
+      : clean;
+  const bigint = parseInt(full || "1f2937", 16);
   return [(bigint >> 16) & 255, (bigint >> 8) & 255, bigint & 255];
-};
+}
 
-const loadImage = (src: string): Promise<HTMLImageElement> =>
-  new Promise((resolve, reject) => {
-    const img = new Image();
-    img.crossOrigin = "anonymous";
-    img.onload = () => resolve(img);
-    img.onerror = reject;
-    img.src = src;
+function defaultFormatMoney(amount: number, currency: string): string {
+  const n = Number.isFinite(amount) ? amount : 0;
+  return `${currency} ${n.toLocaleString(undefined, {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })}`;
+}
+
+function addImageSafe(
+  doc: jsPDF,
+  base64: string,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+) {
+  try {
+    doc.addImage(base64, "PNG", x, y, w, h, undefined, "FAST");
+  } catch {
+    try {
+      doc.addImage(base64, "JPEG", x, y, w, h, undefined, "FAST");
+    } catch {}
+  }
+}
+
+function drawLogoBadge(
+  doc: jsPDF,
+  circularBase64: string | null,
+  x: number,
+  y: number,
+  diameter: number,
+) {
+  const r = diameter / 2;
+  doc.setDrawColor(220, 220, 220);
+  doc.setLineWidth(0.2);
+
+  if (circularBase64) {
+    addImageSafe(doc, circularBase64, x, y, diameter, diameter);
+    doc.circle(x + r, y + r, r, "S");
+  } else {
+    doc.setFillColor(245, 245, 245);
+    doc.circle(x + r, y + r, r, "FD");
+    doc.setFontSize(7);
+    doc.setTextColor(160, 160, 160);
+    doc.text("No Logo", x + r, y + r, { align: "center" });
+  }
+}
+
+function ensureSpace(doc: jsPDF, y: number, needed: number): number {
+  if (y + needed > PAGE_H - MARGIN) {
+    doc.addPage();
+    return MARGIN;
+  }
+  return y;
+}
+
+export async function generateInvoicePDF(
+  options: DownloadInvoicePdfOptions,
+): Promise<jsPDF> {
+  const {
+    form,
+    companySnapshot,
+    clientDetails,
+    items,
+    totals,
+    summary,
+    invoiceCustomization,
+  } = options;
+
+  const formatMoney = options.formatMoney ?? defaultFormatMoney;
+  const accentHex =
+    invoiceCustomization.primaryColor || options.accentColor || "#1f2937";
+  const [ar, ag, ab] = hexToRgb(accentHex);
+  const pageBgHex = invoiceCustomization.secondaryColor;
+
+  console.debug("[invoiceGenerator] customization received:", {
+    primaryColor: invoiceCustomization.primaryColor,
+    secondaryColor: invoiceCustomization.secondaryColor,
+    resolvedAccentHex: accentHex,
+    hasLetterHeadSource: Boolean(invoiceCustomization.letterHeadImg),
+    hasSignatureSource: Boolean(invoiceCustomization.signatureImg),
+    toggles: {
+      showLogo: invoiceCustomization.showLogo,
+      showLetterHead: invoiceCustomization.showLetterHead,
+      showSignature: invoiceCustomization.showSignature,
+      showCompanySnapshot: invoiceCustomization.showCompanySnapshot,
+      showPaymentMethods: invoiceCustomization.showPaymentMethods,
+      showNotes: invoiceCustomization.showNotes,
+      showTerms: invoiceCustomization.showTerms,
+      showItemTable: invoiceCustomization.showItemTable,
+    },
   });
 
-export type LogoSource = File | Blob | string | imageUrls | null | undefined;
+  const [logoBase64Raw, letterHeadBase64, signatureBase64] = await Promise.all([
+    resolveImageToBase64(companySnapshot.logo, "logo").then((b) =>
+      b !== null
+        ? b
+        : resolveImageToBase64(
+            options.fallbackLogoUrl ?? null,
+            "fallback logo",
+          ),
+    ),
+    resolveImageToBase64(invoiceCustomization.letterHeadImg, "letterhead"),
+    resolveImageToBase64(invoiceCustomization.signatureImg, "signature"),
+  ]);
 
-const resolveLogoUrl = (
-  source: LogoSource,
-): { url: string; isObjectUrl: boolean } | null => {
-  if (!source) return null;
-
-  if (typeof source === "string") {
-    return { url: source, isObjectUrl: false };
-  }
-
-  if (source instanceof Blob) {
-    return { url: URL.createObjectURL(source), isObjectUrl: true };
-  }
-
-  const inner = (source as imageUrls).imageUrl as unknown;
-  if (typeof inner === "string") {
-    return { url: inner, isObjectUrl: false };
-  }
-  if (inner instanceof Blob) {
-    return { url: URL.createObjectURL(inner), isObjectUrl: true };
-  }
-
-  return null;
-};
-
-const getCircularLogoDataUrl = async (
-  source: LogoSource,
-  size = 200,
-): Promise<string | null> => {
-  const resolved = resolveLogoUrl(source);
-  if (!resolved) return null;
-
-  try {
-    const img = await loadImage(resolved.url);
-
-    const canvas = document.createElement("canvas");
-    canvas.width = size;
-    canvas.height = size;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) throw new Error("Canvas context unavailable");
-
-    ctx.clearRect(0, 0, size, size);
-    ctx.save();
-    ctx.beginPath();
-    ctx.arc(size / 2, size / 2, size / 2, 0, Math.PI * 2);
-    ctx.closePath();
-    ctx.clip();
-
-    const scale = Math.max(size / img.width, size / img.height);
-    const w = img.width * scale;
-    const h = img.height * scale;
-    ctx.drawImage(img, (size - w) / 2, (size - h) / 2, w, h);
-    ctx.restore();
-
-    return canvas.toDataURL("image/png");
-  } finally {
-    if (resolved.isObjectUrl) URL.revokeObjectURL(resolved.url);
-  }
-};
-
-export async function generateInvoicePDF({
-  form,
-  companySnapshot,
-  clientDetails,
-  items,
-  totals,
-  summary,
-  accentColor = "#0f4c81",
-  fallbackLogoUrl,
-}: GenerateInvoicePdfParams): Promise<jsPDF> {
-  const doc = new jsPDF({ unit: "mm", format: "a4" });
-  const [ar, ag, ab] = hexToRgb(accentColor);
-
-  const pageWidth = doc.internal.pageSize.getWidth();
-  const pageHeight = doc.internal.pageSize.getHeight();
-  const marginX = 15;
-  const contentWidth = pageWidth - marginX * 2;
-  let y = 20;
-
-  const accentText = () => doc.setTextColor(ar, ag, ab);
-  const grayText = () => doc.setTextColor(90, 90, 90);
-  const blackText = () => doc.setTextColor(20, 20, 20);
-  const divider = (yPos: number) => {
-    doc.setDrawColor(ar, ag, ab);
-    doc.setLineWidth(0.15);
-    doc.line(marginX, yPos, marginX + contentWidth, yPos);
-  };
-
-  const ensureSpace = (needed: number) => {
-    if (y + needed > pageHeight - 20) {
-      doc.addPage();
-      y = 20;
+  let logoBase64: string | null = null;
+  if (logoBase64Raw) {
+    try {
+      logoBase64 = await cropImageToCircle(logoBase64Raw);
+    } catch {
+      logoBase64 = logoBase64Raw;
     }
-  };
+  }
 
-  accentText();
-  doc.setFont("helvetica", "bold");
+  const doc = new jsPDF({ unit: "mm", format: "a4" });
+
+  if (pageBgHex) {
+    const [br, bg, bb] = hexToRgb(pageBgHex);
+    doc.setFillColor(br, bg, bb);
+    doc.rect(0, 0, PAGE_W, PAGE_H, "F");
+  }
+
+  let y = MARGIN;
+
+  /* ---- Letterhead ---- */
+  if (invoiceCustomization.showLetterHead && letterHeadBase64) {
+    addImageSafe(doc, letterHeadBase64, 0, 0, PAGE_W, 42);
+    y = 38 + 8;
+  }
+
+  /* ---- Header ---- */
+  const headerTop = y;
+  doc.setTextColor(ar, ag, ab);
+  doc.setFont("helvetica", "normal");
   doc.setFontSize(26);
-  doc.text("Invoice", marginX, y);
+  doc.text("Invoice", MARGIN, y + 8);
 
   doc.setFontSize(11);
+  doc.setFont("helvetica", "bold");
+  doc.text("Invoice Number:", MARGIN, y + 16);
   doc.setFont("helvetica", "normal");
-  doc.text("Invoice Number:", marginX, y + 8);
-  grayText();
-  doc.setFont("helvetica", "normal");
+  doc.setTextColor(90, 90, 90);
   doc.text(
     (form.invoiceNumber || "").toUpperCase(),
-    marginX + doc.getTextWidth("Invoice Number: ") + 1,
-    y + 8,
+    MARGIN + doc.getTextWidth("Invoice Number: ") + 1,
+    y + 16,
   );
 
-  const logoSize = 20;
-  const logoX = marginX + contentWidth - logoSize;
-  const logoY = y - 12;
-  try {
-    const logoSrc: LogoSource = companySnapshot.logo || fallbackLogoUrl;
-    if (logoSrc) {
-      const circularLogo = await getCircularLogoDataUrl(logoSrc);
-      if (circularLogo) {
-        doc.addImage(circularLogo, "PNG", logoX, logoY, logoSize, logoSize);
-      }
-    }
-  } catch {}
+  if (invoiceCustomization.showLogo) {
+    const d = 20;
+    drawLogoBadge(doc, logoBase64, PAGE_W - MARGIN - d, headerTop, d);
+  }
+  y = headerTop + 28;
 
-  y += 20;
-
-  accentText();
+  /* ---- Issue / Due dates ---- */
+  doc.setFontSize(10);
+  doc.setTextColor(ar, ag, ab);
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(10.5);
-  doc.text("Issue Date:", marginX, y);
-  doc.text("Due Date:", marginX + 120, y);
-
-  grayText();
+  doc.text("Issue Date:", MARGIN, y);
+  doc.text("Due Date:", MARGIN + 121, y);
   doc.setFont("helvetica", "normal");
-  doc.setFontSize(9.5);
-  doc.text(form.issueDate || "No Date", marginX, y + 5);
-  doc.text(form.dueDate || "No Date", marginX + 120, y + 5);
-
+  doc.setTextColor(90, 90, 90);
+  doc.text(form.issueDate || "No Date", MARGIN, y + 5);
+  doc.text(form.dueDate || "No Date", MARGIN + 121, y + 5);
   y += 12;
-  divider(y);
-  y += 8;
 
-  const colWidth = contentWidth / 1.5;
-
-  accentText();
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(10.5);
-  doc.text("Billed By:", marginX, y);
-  doc.text("Billed To:", marginX + colWidth, y);
-
-  const billedByLines = [
-    `Name: ${companySnapshot.name || "Name Not Provided"}`,
-    `Email: ${companySnapshot.email || "Email Not Provided"}`,
-    `Address: ${companySnapshot.address || "Address Not Provided"}`,
-  ];
-  const billedToLines = [
-    `Name: ${clientDetails?.name || "Name Not Provided"}`,
-    `Email: ${clientDetails?.email || "Email Not Provided"}`,
-    `Address: ${clientDetails?.address || "Address Not Provided"}`,
-  ];
-
-  grayText();
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(9.5);
-  billedByLines.forEach((line, i) => {
-    const wrapped = doc.splitTextToSize(line, colWidth - 10);
-    doc.text(wrapped, marginX, y + 6 + i * 5);
-  });
-  billedToLines.forEach((line, i) => {
-    const wrapped = doc.splitTextToSize(line, colWidth - 10);
-    doc.text(wrapped, marginX + colWidth, y + 6 + i * 5);
-  });
-
-  y += 6 + billedByLines.length * 5 + 6;
-  divider(y);
-  y += 8;
-
-  const colX = {
-    item: marginX + 3,
-    qty: marginX + contentWidth - 90,
-    price: marginX + contentWidth - 60,
-    total: marginX + contentWidth - 3,
+  const divider = (yy: number) => {
+    doc.setDrawColor(ar, ag, ab);
+    doc.setLineWidth(0.2);
+    doc.line(MARGIN, yy, PAGE_W - MARGIN, yy);
   };
+  divider(y);
+  y += 6;
 
-  const drawTableHeader = () => {
-    doc.setFillColor(ar, ag, ab);
-    doc.rect(marginX, y, contentWidth, 8, "F");
-    doc.setTextColor(255, 255, 255);
+  /* ---- Billed By / Billed To ---- */
+  const colW = CONTENT_W / 1.5;
+  const billBlock = (
+    title: string,
+    x: number,
+    who: { name?: string; email?: string; address?: string },
+  ) => {
     doc.setFont("helvetica", "bold");
+    doc.setFontSize(10);
+    doc.setTextColor(ar, ag, ab);
+    doc.text(title, x, y);
+    doc.setFont("helvetica", "normal");
     doc.setFontSize(9);
-    doc.text("Item", colX.item, y + 5.5);
-    doc.text("Qty", colX.qty, y + 5.5, { align: "right" });
-    doc.text("Price", colX.price, y + 5.5, { align: "right" });
-    doc.text("Total", colX.total, y + 5.5, { align: "right" });
-    y += 15;
+    doc.setTextColor(90, 90, 90);
+    doc.text(`Name: ${who.name || "Name Not Provided"}`, x, y + 5);
+    doc.text(`Email: ${who.email || "Email Not Provided"}`, x, y + 10);
+    const addrLines = doc.splitTextToSize(
+      `Address: ${who.address || "Address Not Provided"}`,
+      colW - 4,
+    );
+    doc.text(addrLines, x, y + 15);
+    return 15 + addrLines.length * 4;
   };
 
-  drawTableHeader();
+  let blockHeight = 0;
+  if (invoiceCustomization.showCompanySnapshot) {
+    blockHeight = Math.max(
+      blockHeight,
+      billBlock("Billed By:", MARGIN, companySnapshot),
+    );
+  }
+  blockHeight = Math.max(
+    blockHeight,
+    billBlock("Billed To:", MARGIN + colW, clientDetails || {}),
+  );
+  y += blockHeight + 6;
 
-  const validItems = items.filter((i) => i.itemName.trim() !== "");
+  /* ---- Item table ---- */
+  if (invoiceCustomization.showItemTable) {
+    divider(y);
+    y += 6;
 
-  blackText();
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(9.5);
+    const cols = {
+      item: MARGIN,
+      qty: MARGIN + CONTENT_W - 80,
+      price: MARGIN + CONTENT_W - 40,
+      total: MARGIN + CONTENT_W - 2,
+    };
+    const rowH = 7;
 
-  if (validItems.length === 0) {
-    doc.setTextColor(170, 170, 170);
-    doc.setFont("helvetica", "italic");
-    doc.text("No items added yet", colX.item, y);
-    y += 8;
-  } else {
-    validItems.forEach((item) => {
-      ensureSpace(9);
-      const rowTotal = item.quantity * item.unitPrice;
-      blackText();
-      doc.setFont("helvetica", "normal");
-      const nameText = doc.splitTextToSize(
-        item.itemName,
-        colX.qty - colX.item - 10,
-      )[0];
-      doc.text(nameText, colX.item, y);
-      doc.text(String(item.quantity), colX.qty, y, { align: "right" });
-      doc.text(formatMoney(item.unitPrice, form.currency), colX.price, y, {
-        align: "right",
-      });
+    const drawTableHeader = () => {
+      doc.setFillColor(ar, ag, ab);
+      doc.rect(MARGIN, y, CONTENT_W, 8, "F");
+      doc.setTextColor(255, 255, 255);
       doc.setFont("helvetica", "bold");
-      doc.text(formatMoney(rowTotal, form.currency), colX.total, y, {
-        align: "right",
+      doc.setFontSize(9);
+      doc.text("Item", cols.item + 2, y + 5.5);
+      doc.text("Qty", cols.qty, y + 5.5, { align: "right" });
+      doc.text("Price", cols.price, y + 5.5, { align: "right" });
+      doc.text("Total", cols.total, y + 5.5, { align: "right" });
+      y += 10;
+    };
+
+    drawTableHeader();
+
+    const visibleItems = items.filter((i) => i.itemName.trim() !== "");
+
+    if (visibleItems.length === 0) {
+      doc.setFont("helvetica", "italic");
+      doc.setFontSize(9);
+      doc.setTextColor(160, 160, 160);
+      doc.text("No items added yet", MARGIN, y + 2);
+      y += 8;
+    } else {
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(9);
+      doc.setTextColor(ar, ag, ab);
+
+      visibleItems.forEach((item) => {
+        y = ensureSpace(doc, y, rowH + 2);
+        if (y === MARGIN) {
+          drawTableHeader();
+        }
+        const nameLines = doc.splitTextToSize(
+          item.itemName,
+          cols.qty - cols.item - 4,
+        );
+        doc.text(nameLines[0], cols.item + 2, y + 4);
+        doc.text(String(item.quantity), cols.qty, y + 4, { align: "right" });
+        doc.text(
+          formatMoney(item.unitPrice, form.currency),
+          cols.price,
+          y + 4,
+          { align: "right" },
+        );
+        doc.setFont("helvetica", "bold");
+        doc.text(
+          formatMoney(item.quantity * item.unitPrice, form.currency),
+          cols.total,
+          y + 4,
+          { align: "right" },
+        );
+        doc.setFont("helvetica", "normal");
+        y += rowH;
       });
-      y += 7;
-    });
+    }
+    y += 4;
   }
 
-  y += 3;
-  ensureSpace(30);
+  /* ---- Totals ---- */
+  y = ensureSpace(doc, y, 40);
   divider(y);
-  y += 8;
+  y += 6;
 
-  const taxPct =
-    (summary?.vatPercentage || 0) +
-    (summary?.getfundPercentage || 0) +
-    (summary?.nhilPercentage || 0);
-
-  const totalsRow = (
+  const totalsX = PAGE_W - MARGIN;
+  const totalRow = (
     label: string,
     value: string,
-    opts?: { bold?: boolean; color?: [number, number, number]; big?: boolean },
+    opts: {
+      bold?: boolean;
+      color?: [number, number, number];
+      size?: number;
+    } = {},
   ) => {
-    doc.setFont("helvetica", opts?.bold ? "bold" : "normal");
-    doc.setFontSize(opts?.big ? 12.5 : 9.5);
-    if (opts?.color) doc.setTextColor(...opts.color);
-    else grayText();
-    doc.text(label, marginX, y);
-    if (opts?.color) doc.setTextColor(...opts.color);
-    else blackText();
-    doc.text(value, marginX + contentWidth, y, { align: "right" });
-    y += opts?.big ? 8 : 6;
+    doc.setFont("helvetica", opts.bold ? "bold" : "normal");
+    doc.setFontSize(opts.size ?? 10);
+    doc.setTextColor(70, 70, 70);
+    doc.text(label, MARGIN, y);
+    doc.setTextColor(...(opts.color ?? [40, 40, 40]));
+    doc.text(value, totalsX, y, { align: "right" });
+    y += 6;
   };
 
-  totalsRow("Subtotal", formatMoney(totals.subtotal, form.currency));
-  totalsRow(
-    "Discount",
-    `-${formatMoney(totals.discountValue, form.currency)}`,
-    {
-      color: [220, 38, 38],
-    },
-  );
-  totalsRow(
+  totalRow("Subtotal", formatMoney(totals.subtotal, form.currency));
+  totalRow("Discount", `-${formatMoney(totals.discountValue, form.currency)}`, {
+    color: [220, 38, 38],
+  });
+  const taxPct =
+    (summary.vatPercentage || 0) +
+    (summary.nhilPercentage || 0) +
+    (summary.getfundPercentage || 0);
+  totalRow(
     `Tax (VAT, GETFund, NHIL): ${taxPct}%`,
     formatMoney(totals.taxAmount, form.currency),
   );
 
-  y += 2;
-  totalsRow("Total", formatMoney(totals.totalAmount, form.currency), {
-    bold: true,
-    color: [ar, ag, ab],
-    big: true,
+  y += 1;
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(13);
+  doc.setTextColor(ar, ag, ab);
+  doc.text("Total", MARGIN, y + 2);
+  doc.setTextColor(30, 30, 30);
+  doc.text(formatMoney(totals.totalAmount, form.currency), totalsX, y + 2, {
+    align: "right",
   });
+  y += 10;
 
-  if (summary.notes || summary.terms) {
-    y += 4;
-    ensureSpace(20);
+  /* ---- Notes / Terms ---- */
+  const hasNotes = invoiceCustomization.showNotes && summary.notes;
+  const hasTerms = invoiceCustomization.showTerms && summary.terms;
+  if (hasNotes || hasTerms) {
+    y = ensureSpace(doc, y, 20);
     divider(y);
-    y += 7;
-
-    if (summary.notes) {
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(8.5);
-      doc.setTextColor(120, 120, 120);
-      doc.text("Notes", marginX, y);
-      y += 5;
-      doc.setFont("helvetica", "normal");
-      doc.setFontSize(9.5);
-      doc.setTextColor(60, 60, 60);
-      const notesLines = doc.splitTextToSize(summary.notes, contentWidth);
-      doc.text(notesLines, marginX, y);
-      y += notesLines.length * 5 + 4;
-    }
-
-    if (summary.terms) {
-      ensureSpace(15);
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(8.5);
-      doc.setTextColor(120, 120, 120);
-      doc.text("Terms", marginX, y);
-      y += 5;
-      doc.setFont("helvetica", "normal");
-      doc.setFontSize(9.5);
-      doc.setTextColor(60, 60, 60);
-      const termsLines = doc.splitTextToSize(summary.terms, contentWidth);
-      doc.text(termsLines, marginX, y);
-      y += termsLines.length * 5;
-    }
-  }
-
-  if (
-    companySnapshot.paymentMethods &&
-    companySnapshot.paymentMethods.length > 0
-  ) {
-    y += 4;
-    ensureSpace(20);
-    divider(y);
-    y += 7;
-
-    const methods = companySnapshot.paymentMethods;
-
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(8.5);
-    doc.setTextColor(120, 120, 120);
-    doc.text(`Payment Method${methods.length > 1 ? "s" : ""}`, marginX, y);
     y += 6;
 
-    methods.forEach((method) => {
-      ensureSpace(26);
+    const writeBlock = (label: string, text: string) => {
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(8);
+      doc.setTextColor(140, 140, 140);
+      doc.text(label, MARGIN, y);
+      y += 4;
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(9.5);
+      doc.setTextColor(50, 50, 50);
+      const lines = doc.splitTextToSize(text, CONTENT_W);
+      y = ensureSpace(doc, y, lines.length * 4.5);
+      doc.text(lines, MARGIN, y);
+      y += lines.length * 4.5 + 4;
+    };
 
-      accentText();
+    if (hasNotes) writeBlock("Notes", summary.notes);
+    if (hasTerms) writeBlock("Terms", summary.terms);
+  }
+
+  /* ---- Payment methods ---- */
+  if (
+    invoiceCustomization.showPaymentMethods &&
+    companySnapshot.paymentMethods.length > 0
+  ) {
+    y = ensureSpace(doc, y, 20);
+    divider(y);
+    y += 6;
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(8);
+    doc.setTextColor(140, 140, 140);
+    doc.text(
+      `Payment Method${companySnapshot.paymentMethods.length > 1 ? "s" : ""}`,
+      MARGIN,
+      y,
+    );
+    y += 6;
+
+    const methodColW = CONTENT_W / 2 - 4;
+    let colIndex = 0;
+    let rowStartY = y;
+
+    companySnapshot.paymentMethods.forEach((method) => {
+      const x = MARGIN + colIndex * (methodColW + 8);
+      let my = rowStartY;
+
       doc.setFont("helvetica", "bold");
       doc.setFontSize(9.5);
+      doc.setTextColor(ar, ag, ab);
       doc.text(
         method.paymentType === "Bank" ? "Bank Transfer" : "Mobile Money",
-        marginX,
-        y,
+        x,
+        my,
       );
-      y += 5;
+      my += 5;
 
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(9);
+      doc.setTextColor(80, 80, 80);
       const lines =
         method.paymentType === "Bank"
           ? [
-              `Bank: ${method.bankName || "N/A"}`,
-              `Branch: ${method.bankBranch || "N/A"}`,
-              `Account Name: ${method.accountName || "N/A"}`,
-              `Account Number: ${method.accountNumber || "N/A"}`,
+              `Bank: ${method.bankName || ""}`,
+              `Branch: ${method.bankBranch || ""}`,
+              `Account Name: ${method.accountName || ""}`,
+              `Account Number: ${method.accountNumber || ""}`,
             ]
           : [
-              `Network: ${method.momoVendor || "N/A"}`,
-              `Name: ${method.momoName || "N/A"}`,
-              `Wallet: ${method.momoWallet || "N/A"}`,
+              `Network: ${method.momoVendor || ""}`,
+              `Name: ${method.momoName || ""}`,
+              `Wallet: ${method.momoWallet || ""}`,
             ];
-
-      grayText();
-      doc.setFont("helvetica", "normal");
-      doc.setFontSize(9);
       lines.forEach((line) => {
-        ensureSpace(5);
-        doc.text(line, marginX, y);
-        y += 5;
+        doc.text(line, x, my);
+        my += 4.5;
       });
 
-      y += 2;
+      colIndex += 1;
+      if (colIndex === 2) {
+        colIndex = 0;
+        rowStartY = Math.max(rowStartY, my) + 4;
+        rowStartY = ensureSpace(doc, rowStartY, 20);
+      }
     });
+
+    y = rowStartY + (colIndex === 1 ? 24 : 0);
+  }
+
+  /* ---- Signature ---- */
+  if (invoiceCustomization.showSignature && signatureBase64) {
+    y = ensureSpace(doc, y, 30);
+    divider(y);
+    y += 8;
+    const w = 40;
+    const h = 16;
+    addImageSafe(doc, signatureBase64, PAGE_W - MARGIN - w, y, w, h);
+    y += h + 4;
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8);
+    doc.setTextColor(140, 140, 140);
+    doc.text("Authorized Signature", PAGE_W - MARGIN, y, { align: "right" });
   }
 
   return doc;
 }
 
-export async function downloadInvoicePDF(params: GenerateInvoicePdfParams) {
-  const doc = await generateInvoicePDF(params);
-  doc.save(`invoice-${params.form.invoiceNumber || "untitled"}.pdf`);
+export async function downloadInvoicePDF(
+  options: DownloadInvoicePdfOptions,
+): Promise<void> {
+  const doc = await generateInvoicePDF(options);
+  doc.save(
+    options.filename || `invoice-${options.form.invoiceNumber || "draft"}.pdf`,
+  );
 }

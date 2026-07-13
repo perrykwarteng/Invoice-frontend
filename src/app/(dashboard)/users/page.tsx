@@ -314,7 +314,7 @@ export default function Users() {
             value={form.email}
             id="email"
             placeholder="emmanuel@infinitytel.com"
-            disabled
+            disabled={isEdit}
             onChange={(e: any) => handleChange("email", e.target.value)}
           />
 

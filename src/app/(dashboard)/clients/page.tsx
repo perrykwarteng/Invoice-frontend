@@ -183,16 +183,14 @@ export default function Clients() {
                   <Pencil className="w-3.5 h-3.5" />
                   Edit
                 </button>
-                {userRole !== "staff" && (
-                  <button
-                    className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium rounded-md
+                <button
+                  className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium rounded-md
                   bg-red-50 text-red-600 hover:bg-red-100 transition"
-                    onClick={() => openDeleteConfirm(client.id)}
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                    Delete
-                  </button>
-                )}
+                  onClick={() => openDeleteConfirm(client.id)}
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  Delete
+                </button>
               </div>
             )}
           />

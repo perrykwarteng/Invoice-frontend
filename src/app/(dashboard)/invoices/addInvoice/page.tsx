@@ -13,7 +13,12 @@ import { Plus, Trash2 } from "lucide-react";
 import { formatMoney } from "./formatMoney";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { getClient } from "@/services/client";
-import { ClientType, imageUrls, PaymentMethod } from "@/types/types";
+import {
+  ClientType,
+  imageUrls,
+  InvoiceCustomization,
+  PaymentMethod,
+} from "@/types/types";
 import { toast } from "sonner";
 import { createInvoice } from "@/services/invoice";
 import { useRouter } from "next/navigation";
@@ -34,6 +39,7 @@ export const makeEmptyItem = (): InvoiceItem => ({
   quantity: 1,
   unitPrice: 0,
 });
+
 const getLogoSrc = (logo: imageUrls | File | null): string | null => {
   if (!logo) return null;
 
@@ -43,6 +49,17 @@ const getLogoSrc = (logo: imageUrls | File | null): string | null => {
 
   return logo.imageUrl;
 };
+
+const getAssetSrc = (asset: unknown): string | null => {
+  if (!asset) return null;
+  if (asset instanceof File) return URL.createObjectURL(asset);
+  if (typeof asset === "string") return asset;
+  if (typeof asset === "object" && asset !== null && "imageUrl" in asset) {
+    return (asset as imageUrls).imageUrl;
+  }
+  return null;
+};
+
 const isSamePaymentMethod = (a: PaymentMethod, b: PaymentMethod): boolean => {
   if (a.paymentType !== b.paymentType) return false;
   if (a.paymentType === "Bank" && b.paymentType === "Bank") {
@@ -63,6 +80,45 @@ type CompanySnapshot = {
   paymentMethods: PaymentMethod[];
 };
 
+const SECTION_TOGGLES: {
+  key: keyof InvoiceCustomization;
+  label: string;
+  description: string;
+}[] = [
+  {
+    key: "showLogo",
+    label: "Company Logo",
+    description: "Show your logo in the header",
+  },
+  {
+    key: "showLetterHead",
+    label: "Letterhead",
+    description: "Show the letterhead banner",
+  },
+  {
+    key: "showSignature",
+    label: "Signature",
+    description: "Show a signature at the bottom",
+  },
+  {
+    key: "showCompanySnapshot",
+    label: "Company Snapshot",
+    description: "Show your business details",
+  },
+  {
+    key: "showPaymentMethods",
+    label: "Payment Methods",
+    description: "Show how you'd like to get paid",
+  },
+  { key: "showNotes", label: "Notes", description: "Show the notes section" },
+  { key: "showTerms", label: "Terms", description: "Show payment terms" },
+  {
+    key: "showItemTable",
+    label: "Item Table",
+    description: "Show the line-item breakdown",
+  },
+];
+
 export default function AddInvoice() {
   const routes = useRouter();
   const { data: clientData } = useQuery({
@@ -77,6 +133,7 @@ export default function AddInvoice() {
   });
 
   const [manualIvoNumber, setManualIvoNumber] = useState(true);
+  const [customizeInvoice, setCustomizeInvoice] = useState(false);
 
   const invoicePrefix = settingsData?.invoicePrefix;
   const invoiceNextInvNumber = settingsData?.nextInvoiceNumber;
@@ -86,6 +143,40 @@ export default function AddInvoice() {
   ).padStart(4, "0")}`;
 
   const [isPreview, setIsPreview] = useState(false);
+
+  const [invoiceCustomSettings, setInvoiceCustomSettings] =
+    useState<InvoiceCustomization>({
+      primaryColor: null,
+      secondaryColor: null,
+      letterHeadImg: null,
+      signatureImg: null,
+
+      showLogo: true,
+      showLetterHead: true,
+      showSignature: true,
+      showCompanySnapshot: true,
+      showPaymentMethods: true,
+      showNotes: true,
+      showTerms: true,
+      showItemTable: true,
+    });
+
+  const handleInvCustomization = (
+    key: keyof InvoiceCustomization,
+    value: any,
+  ) => {
+    setInvoiceCustomSettings((prev) => ({
+      ...prev,
+      [key]: value,
+    }));
+  };
+
+  const toggleInvCustomization = (key: keyof InvoiceCustomization) => {
+    setInvoiceCustomSettings((prev) => ({
+      ...prev,
+      [key]: !prev[key],
+    }));
+  };
 
   const [form, setForm] = useState({
     invoiceNumber: invoiceNumber || "",
@@ -312,13 +403,20 @@ export default function AddInvoice() {
     formData.append("getfundPercentage", String(summary.getfundPercentage));
     formData.append("taxAmount", String(totals.taxAmount));
     formData.append("totalAmount", String(totals.totalAmount));
-
     formData.append("notes", String(summary.notes));
     formData.append("terms", String(summary.terms));
-
     formData.append("companySnapshot", JSON.stringify(companySnapshot));
-
     formData.append("invoiceItem", JSON.stringify(items));
+    if (invoiceCustomSettings.letterHeadImg instanceof File) {
+      formData.append("letterHeadImg", invoiceCustomSettings.letterHeadImg);
+    }
+    if (invoiceCustomSettings.signatureImg instanceof File) {
+      formData.append("signatureImg", invoiceCustomSettings.signatureImg);
+    }
+    formData.append(
+      "invoiceCustomization",
+      JSON.stringify(invoiceCustomSettings),
+    );
 
     return formData;
   };
@@ -333,6 +431,24 @@ export default function AddInvoice() {
   };
 
   const logoSrc = getLogoSrc(companySnapshot.logo);
+  const letterHeadSrc = getAssetSrc(invoiceCustomSettings.letterHeadImg);
+  const signatureSrc = getAssetSrc(invoiceCustomSettings.signatureImg);
+
+  const previewPrimary = invoiceCustomSettings.primaryColor || undefined;
+  const previewSecondary = invoiceCustomSettings.secondaryColor || undefined;
+
+  const accentTextStyle = previewPrimary
+    ? { color: previewPrimary }
+    : undefined;
+  const accentBorderStyle = previewPrimary
+    ? { borderColor: previewPrimary }
+    : undefined;
+  const accentBgStyle = previewPrimary
+    ? { backgroundColor: previewPrimary }
+    : undefined;
+  const cardBgStyle = previewSecondary
+    ? { backgroundColor: previewSecondary }
+    : undefined;
 
   return (
     <DashboardLayout>
@@ -890,6 +1006,276 @@ export default function AddInvoice() {
               </div>
             </div>
 
+            <div className="w-full h-0.5 bg-accent/30"></div>
+
+            <div className="flex items-center justify-between gap-3 mt-3">
+              <div>
+                <p className="text-sm sm:text-base font-medium text-accent">
+                  Customize Your Invoice
+                </p>
+                <p className="text-xs text-gray-500">
+                  Brand colors, letterhead, signature, and which sections show
+                  up.
+                </p>
+              </div>
+              <ToggleSwitch
+                checked={customizeInvoice}
+                disabled={false}
+                onChange={setCustomizeInvoice}
+              />
+            </div>
+
+            {customizeInvoice && (
+              <div className="rounded-lg border border-accent/20 bg-accent/3 p-3 sm:p-5 space-y-6">
+                <div>
+                  <h3 className="text-accent text-lg sm:text-xl font-medium">
+                    Customize Invoice
+                  </h3>
+                  <p className="text-sm text-gray-500">
+                    Changes here update the live preview on the right.
+                  </p>
+                </div>
+
+                <div>
+                  <h4 className="text-sm font-semibold text-accent uppercase tracking-wide mb-3">
+                    Brand Colors
+                  </h4>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="bg-white rounded-md border border-accent/20 p-3 flex items-center gap-3">
+                      <label
+                        htmlFor="primaryColor"
+                        className="relative shrink-0 w-11 h-11 rounded-full border-2 border-white shadow ring-1 ring-accent/20 overflow-hidden cursor-pointer"
+                        style={{
+                          backgroundColor:
+                            invoiceCustomSettings.primaryColor ?? "#1f2937",
+                        }}
+                      >
+                        <input
+                          id="primaryColor"
+                          type="color"
+                          value={
+                            invoiceCustomSettings.primaryColor ?? "#1f2937"
+                          }
+                          onChange={(e) =>
+                            handleInvCustomization(
+                              "primaryColor",
+                              e.target.value,
+                            )
+                          }
+                          className="absolute inset-0 opacity-0 cursor-pointer"
+                        />
+                      </label>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-medium text-accent">
+                          Primary Color
+                        </p>
+                        <p className="text-xs text-gray-500 truncate">
+                          Headings, totals &amp; accents
+                        </p>
+                      </div>
+                      {invoiceCustomSettings.primaryColor && (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            handleInvCustomization("primaryColor", null)
+                          }
+                          className="text-xs text-gray-400 hover:text-red-500 shrink-0"
+                        >
+                          Reset
+                        </button>
+                      )}
+                    </div>
+
+                    <div className="bg-white rounded-md border border-accent/20 p-3 flex items-center gap-3">
+                      <label
+                        htmlFor="secondaryColor"
+                        className="relative shrink-0 w-11 h-11 rounded-full border-2 border-white shadow ring-1 ring-accent/20 overflow-hidden cursor-pointer"
+                        style={{
+                          backgroundColor:
+                            invoiceCustomSettings.secondaryColor ?? "#ffffff",
+                        }}
+                      >
+                        <input
+                          id="secondaryColor"
+                          type="color"
+                          value={
+                            invoiceCustomSettings.secondaryColor ?? "#ffffff"
+                          }
+                          onChange={(e) =>
+                            handleInvCustomization(
+                              "secondaryColor",
+                              e.target.value,
+                            )
+                          }
+                          className="absolute inset-0 opacity-0 cursor-pointer"
+                        />
+                      </label>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-medium text-accent">
+                          Secondary Color
+                        </p>
+                        <p className="text-xs text-gray-500 truncate">
+                          Invoice background
+                        </p>
+                      </div>
+                      {invoiceCustomSettings.secondaryColor && (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            handleInvCustomization("secondaryColor", null)
+                          }
+                          className="text-xs text-gray-400 hover:text-red-500 shrink-0"
+                        >
+                          Reset
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <h4 className="text-sm font-semibold text-accent uppercase tracking-wide mb-3">
+                    Images
+                  </h4>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="bg-white rounded-md border border-accent/20 p-3">
+                      <div className="flex items-center gap-2 mb-2">
+                        <label className="text-sm font-medium text-accent">
+                          Letterhead Image
+                        </label>
+                      </div>
+
+                      {letterHeadSrc ? (
+                        <div className="relative w-full h-20 rounded border border-accent/15 overflow-hidden bg-gray-50 mb-2">
+                          <Image
+                            src={letterHeadSrc}
+                            alt="Letterhead preview"
+                            fill
+                            unoptimized
+                            className="object-cover"
+                          />
+                        </div>
+                      ) : (
+                        <div className="w-full h-20 rounded border border-dashed border-accent/25 flex items-center justify-center text-xs text-gray-400 mb-2">
+                          No letterhead uploaded
+                        </div>
+                      )}
+
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="file"
+                          accept="image/*"
+                          className="block w-full text-xs text-gray-600
+              file:mr-2 file:py-1.5 file:px-3
+              file:rounded-md file:border-0
+              file:bg-accent file:text-white file:text-xs
+              file:cursor-pointer hover:file:opacity-90"
+                          onChange={(e) =>
+                            handleInvCustomization(
+                              "letterHeadImg",
+                              e.target.files?.[0] || null,
+                            )
+                          }
+                        />
+                        {invoiceCustomSettings.letterHeadImg && (
+                          <button
+                            type="button"
+                            onClick={() =>
+                              handleInvCustomization("letterHeadImg", null)
+                            }
+                            className="text-xs text-gray-400 hover:text-red-500 shrink-0"
+                          >
+                            Remove
+                          </button>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="bg-white rounded-md border border-accent/20 p-3">
+                      <div className="flex items-center gap-2 mb-2">
+                        <label className="text-sm font-medium text-accent">
+                          Signature Image
+                        </label>
+                      </div>
+
+                      {signatureSrc ? (
+                        <div className="relative w-full h-20 rounded border border-accent/15 overflow-hidden bg-gray-50 mb-2">
+                          <Image
+                            src={signatureSrc}
+                            alt="Signature preview"
+                            fill
+                            unoptimized
+                            className="object-contain"
+                          />
+                        </div>
+                      ) : (
+                        <div className="w-full h-20 rounded border border-dashed border-accent/25 flex items-center justify-center text-xs text-gray-400 mb-2">
+                          No signature uploaded
+                        </div>
+                      )}
+
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="file"
+                          accept="image/*"
+                          className="block w-full text-xs text-gray-600
+              file:mr-2 file:py-1.5 file:px-3
+              file:rounded-md file:border-0
+              file:bg-accent file:text-white file:text-xs
+              file:cursor-pointer hover:file:opacity-90"
+                          onChange={(e) =>
+                            handleInvCustomization(
+                              "signatureImg",
+                              e.target.files?.[0] || null,
+                            )
+                          }
+                        />
+                        {invoiceCustomSettings.signatureImg && (
+                          <button
+                            type="button"
+                            onClick={() =>
+                              handleInvCustomization("signatureImg", null)
+                            }
+                            className="text-xs text-gray-400 hover:text-red-500 shrink-0"
+                          >
+                            Remove
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <h4 className="text-sm font-semibold text-accent uppercase tracking-wide mb-3">
+                    Invoice Sections
+                  </h4>
+                  <div className="bg-white rounded-md border border-accent/20 divide-y divide-accent/10">
+                    {SECTION_TOGGLES.map(({ key, label, description }) => (
+                      <div
+                        key={key}
+                        className="flex items-center justify-between gap-3 px-3 py-2.5"
+                      >
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium text-accent">
+                            {label}
+                          </p>
+                          <p className="text-xs text-gray-500 truncate">
+                            {description}
+                          </p>
+                        </div>
+                        <ToggleSwitch
+                          checked={Boolean(invoiceCustomSettings[key])}
+                          disabled={false}
+                          onChange={() => toggleInvCustomization(key)}
+                        />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+
             <div className="flex items-center justify-end">
               <div className="w-full sm:w-40">
                 <Button
@@ -918,227 +1304,315 @@ export default function AddInvoice() {
                 Preview
               </h3>
 
-              <div className="bg-white rounded-lg border-2 border-accent/30 p-3 sm:p-5 space-y-4 sm:space-y-5 overflow-x-auto">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <h3 className="text-accent text-2xl sm:text-4xl font-medium">
-                      Invoice
-                    </h3>
-                    <p className="text-sm sm:text-lg text-accent font-medium mt-1 wrap-break-word">
-                      Invoice Number:{" "}
-                      <span className="uppercase text-gray-600 text-xs sm:text-md">
-                        {form.invoiceNumber}
-                      </span>
-                    </p>
+              <div
+                className="rounded-lg border-2 border-accent/30"
+                style={{ backgroundColor: previewSecondary ?? "#ffffff" }}
+              >
+                {invoiceCustomSettings.showLetterHead && letterHeadSrc && (
+                  <div className="relative w-full h-16 sm:h-36 overflow-hidden">
+                    <Image
+                      src={letterHeadSrc}
+                      alt="Letterhead"
+                      fill
+                      unoptimized
+                      className="object-fill"
+                    />
                   </div>
-                  <div className="w-14 h-14 sm:w-20 sm:h-20 rounded-full shrink-0 bg-gray-100 flex items-center justify-center overflow-hidden">
-                    {logoSrc ? (
-                      <Image
-                        src={logoSrc}
-                        alt="Company Logo"
-                        width={80}
-                        height={80}
-                        unoptimized={typeof companySnapshot.logo !== "string"}
-                        className="w-full h-full rounded-full object-cover"
-                      />
-                    ) : (
-                      <span className="text-xs text-gray-400 text-center px-1">
-                        No Logo
-                      </span>
-                    )}
-                  </div>
-                </div>
-
-                <div className="flex flex-wrap items-center gap-x-8 sm:gap-x-20 gap-y-3">
-                  <div className="flex flex-col">
-                    <p className="text-sm sm:text-md text-accent font-medium">
-                      Issue Date:
-                    </p>
-                    <p className="text-xs sm:text-sm text-gray-600 ">
-                      {form.issueDate || "No Date"}
-                    </p>
-                  </div>
-                  <div className="flex flex-col">
-                    <p className="text-sm sm:text-md text-accent font-medium">
-                      Due Date:
-                    </p>
-                    <p className="text-xs sm:text-sm text-gray-600">
-                      {form.dueDate || "No Date"}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="w-full h-px bg-accent/20"></div>
-
-                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                  <div className="flex flex-col min-w-0">
-                    <p className="text-sm sm:text-md text-accent font-medium">
-                      Billed By:
-                    </p>
-                    <p className="text-xs sm:text-sm text-gray-600 wrap-break-word">
-                      Name: {companySnapshot.name || "Name Not Provided"}
-                    </p>
-                    <p className="text-xs sm:text-sm text-gray-600 wrap-break-word">
-                      Email: {companySnapshot.email || "Email Not Provided"}
-                    </p>
-                    <p className="text-xs sm:text-sm text-gray-600 wrap-break-word">
-                      Address:{" "}
-                      {companySnapshot.address || "Address Not Provided"}
-                    </p>
-                  </div>
-                  <div className="flex flex-col min-w-0">
-                    <p className="text-sm sm:text-md text-accent font-medium">
-                      Billed To:
-                    </p>
-                    <p className="text-xs sm:text-sm text-gray-600 wrap-break-word">
-                      Name: {clientDetails?.name || "Name Not Provided"}
-                    </p>
-                    <p className="text-xs sm:text-sm text-gray-600 wrap-break-word">
-                      Email: {clientDetails?.email || "Email Not Provided"}
-                    </p>
-                    <p className="text-xs sm:text-sm text-gray-600 wrap-break-word">
-                      Address:{" "}
-                      {clientDetails?.address || "Address Not Provided"}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="w-full h-px bg-accent/20"></div>
-
-                <div className="min-w-120 sm:min-w-0">
-                  <div className="grid grid-cols-[1fr_50px_90px_90px] gap-x-4 sm:gap-x-10 text-xs font-medium text-bg-light bg-accent py-2 px-3 sm:px-7">
-                    <span>Item</span>
-                    <span className="text-right">Qty</span>
-                    <span className="text-right">Price</span>
-                    <span className="text-right">Total</span>
-                  </div>
-                  <div className="space-y-1.5">
-                    {items
-                      .filter((item) => item.itemName.trim() !== "")
-                      .map((item) => (
-                        <div
-                          key={item.id}
-                          className="grid grid-cols-[1fr_50px_90px_90px] gap-x-4 sm:gap-x-10 text-sm px-3 sm:px-7 mt-1"
-                        >
-                          <span className="truncate text-accent">{item.itemName}</span>
-                          <span className="text-right text-accent">{item.quantity}</span>
-                          <span className="text-right text-accent">
-                            {formatMoney(item.unitPrice, form.currency)}
-                          </span>
-                          <span className="text-right font-medium text-accent">
-                            {formatMoney(
-                              item.quantity * item.unitPrice,
-                              form.currency,
-                            )}
-                          </span>
-                        </div>
-                      ))}
-                    {items.every((item) => item.itemName.trim() === "") && (
-                      <p className="text-sm text-gray-400 italic mt-1 px-3 sm:px-0">
-                        No items added yet
-                      </p>
-                    )}
-                  </div>
-                </div>
-
-                <div className="w-full h-px bg-accent/20"></div>
-
-                <div className="space-y-1.5">
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-gray-600">Subtotal</span>
-                    <span className="text-accent">{formatMoney(totals.subtotal, form.currency)}</span>
-                  </div>
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-gray-600">Discount</span>
-                    <span className="text-red-500">
-                      -{formatMoney(totals.discountValue, form.currency)}
-                    </span>
-                  </div>
-                  <div className="flex items-start sm:items-center justify-between text-sm gap-3">
-                    <span className="text-gray-600">
-                      Tax(VAT, GETFund, NHIL):
-                      {summary?.vatPercentage +
-                        summary?.getfundPercentage +
-                        summary?.nhilPercentage}
-                      %
-                    </span>
-                    <span className="shrink-0 text-accent">
-                      {formatMoney(totals.taxAmount, form.currency)}
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between text-base sm:text-lg mt-2">
-                    <span className="text-accent font-semibold">Total</span>
-                    <span className="text-accent font-bold">
-                      {formatMoney(totals.totalAmount, form.currency)}
-                    </span>
-                  </div>
-                </div>
-
-                {(summary.notes || summary.terms) && (
-                  <>
-                    <div className="w-full h-px bg-accent/20"></div>
-                    {summary.notes && (
-                      <div>
-                        <p className="text-xs font-medium text-gray-500">
-                          Notes
-                        </p>
-                        <p className="text-sm text-gray-700 whitespace-pre-wrap wrap-break-word">
-                          {summary.notes}
-                        </p>
-                      </div>
-                    )}
-                    {summary.terms && (
-                      <div>
-                        <p className="text-xs font-medium text-gray-500">
-                          Terms
-                        </p>
-                        <p className="text-sm text-gray-700 whitespace-pre-wrap wrap-break-word">
-                          {summary.terms}
-                        </p>
-                      </div>
-                    )}
-                  </>
                 )}
 
-                {companySnapshot.paymentMethods.length > 0 && (
-                  <>
-                    <div className="w-full h-px bg-accent/20"></div>
-                    <div>
-                      <p className="text-xs font-medium text-gray-500 mb-2">
-                        Payment Method
-                        {companySnapshot.paymentMethods.length > 1 ? "s" : ""}
+                <div className="p-3 sm:p-3.5 space-y-4 sm:space-y-5 overflow-x-auto">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <h3
+                        className="text-accent text-2xl sm:text-4xl font-medium"
+                        style={accentTextStyle}
+                      >
+                        Invoice
+                      </h3>
+                      <p
+                        className="text-sm sm:text-lg text-accent font-medium mt-1 wrap-break-word"
+                        style={accentTextStyle}
+                      >
+                        Invoice Number:{" "}
+                        <span className="uppercase text-gray-600 text-xs sm:text-md">
+                          {form.invoiceNumber}
+                        </span>
                       </p>
-                      <div className="flex flex-col sm:flex-row sm:flex-wrap gap-4">
-                        {companySnapshot.paymentMethods.map((method, index) => (
-                          <div
-                            key={index}
-                            className="text-sm text-gray-700 space-y-0.5 flex-1 min-w-0 sm:min-w-45 wrap-break-word"
-                          >
-                            <p className="font-medium text-accent">
-                              {method.paymentType === "Bank"
-                                ? "Bank Transfer"
-                                : "Mobile Money"}
+                    </div>
+                    {invoiceCustomSettings.showLogo && (
+                      <div className="w-14 h-14 sm:w-20 sm:h-20 rounded-full shrink-0 bg-gray-100 flex items-center justify-center overflow-hidden">
+                        {logoSrc ? (
+                          <Image
+                            src={logoSrc}
+                            alt="Company Logo"
+                            width={80}
+                            height={80}
+                            unoptimized={
+                              typeof companySnapshot.logo !== "string"
+                            }
+                            className="w-full h-full rounded-full object-cover"
+                          />
+                        ) : (
+                          <span className="text-xs text-gray-400 text-center px-1">
+                            No Logo
+                          </span>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex flex-wrap items-center gap-x-8 sm:gap-x-20 gap-y-3">
+                    <div className="flex flex-col">
+                      <p
+                        className="text-sm sm:text-md text-accent font-medium"
+                        style={accentTextStyle}
+                      >
+                        Issue Date:
+                      </p>
+                      <p className="text-xs sm:text-sm text-gray-600 ">
+                        {form.issueDate || "No Date"}
+                      </p>
+                    </div>
+                    <div className="flex flex-col">
+                      <p
+                        className="text-sm sm:text-md text-accent font-medium"
+                        style={accentTextStyle}
+                      >
+                        Due Date:
+                      </p>
+                      <p className="text-xs sm:text-sm text-gray-600">
+                        {form.dueDate || "No Date"}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="w-full h-px bg-accent/20"></div>
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                    {invoiceCustomSettings.showCompanySnapshot && (
+                      <div className="flex flex-col min-w-0">
+                        <p
+                          className="text-sm sm:text-md text-accent font-medium"
+                          style={accentTextStyle}
+                        >
+                          Billed By:
+                        </p>
+                        <p className="text-xs sm:text-sm text-gray-600 wrap-break-word">
+                          Name: {companySnapshot.name || "Name Not Provided"}
+                        </p>
+                        <p className="text-xs sm:text-sm text-gray-600 wrap-break-word">
+                          Email: {companySnapshot.email || "Email Not Provided"}
+                        </p>
+                        <p className="text-xs sm:text-sm text-gray-600 wrap-break-word">
+                          Address:{" "}
+                          {companySnapshot.address || "Address Not Provided"}
+                        </p>
+                      </div>
+                    )}
+                    <div className="flex flex-col min-w-0">
+                      <p
+                        className="text-sm sm:text-md text-accent font-medium"
+                        style={accentTextStyle}
+                      >
+                        Billed To:
+                      </p>
+                      <p className="text-xs sm:text-sm text-gray-600 wrap-break-word">
+                        Name: {clientDetails?.name || "Name Not Provided"}
+                      </p>
+                      <p className="text-xs sm:text-sm text-gray-600 wrap-break-word">
+                        Email: {clientDetails?.email || "Email Not Provided"}
+                      </p>
+                      <p className="text-xs sm:text-sm text-gray-600 wrap-break-word">
+                        Address:{" "}
+                        {clientDetails?.address || "Address Not Provided"}
+                      </p>
+                    </div>
+                  </div>
+                  {invoiceCustomSettings.showItemTable && (
+                    <>
+                      <div className="w-full h-px bg-accent/20"></div>
+                      <div className="min-w-120 sm:min-w-0">
+                        <div
+                          className="grid grid-cols-[1fr_50px_90px_90px] gap-x-4 sm:gap-x-10 text-xs font-medium text-bg-light bg-accent py-2 px-3 sm:px-7"
+                          style={accentBgStyle}
+                        >
+                          <span>Item</span>
+                          <span className="text-right">Qty</span>
+                          <span className="text-right">Price</span>
+                          <span className="text-right">Total</span>
+                        </div>
+                        <div className="space-y-1.5">
+                          {items
+                            .filter((item) => item.itemName.trim() !== "")
+                            .map((item) => (
+                              <div
+                                key={item.id}
+                                className="grid grid-cols-[1fr_50px_90px_90px] gap-x-4 sm:gap-x-10 text-sm px-3 sm:px-7 mt-1"
+                              >
+                                <span className="truncate text-accent">
+                                  {item.itemName}
+                                </span>
+                                <span className="text-right text-accent">
+                                  {item.quantity}
+                                </span>
+                                <span className="text-right text-accent">
+                                  {formatMoney(item.unitPrice, form.currency)}
+                                </span>
+                                <span className="text-right font-medium text-accent">
+                                  {formatMoney(
+                                    item.quantity * item.unitPrice,
+                                    form.currency,
+                                  )}
+                                </span>
+                              </div>
+                            ))}
+                          {items.every(
+                            (item) => item.itemName.trim() === "",
+                          ) && (
+                            <p className="text-sm text-gray-400 italic mt-1 px-3 sm:px-0">
+                              No items added yet
                             </p>
-                            {method.paymentType === "Bank" ? (
-                              <>
-                                <p>Bank: {method.bankName}</p>
-                                <p>Branch: {method.bankBranch}</p>
-                                <p>Account Name: {method.accountName}</p>
-                                <p>Account Number: {method.accountNumber}</p>
-                              </>
-                            ) : (
-                              <>
-                                <p>Network: {method.momoVendor}</p>
-                                <p>Name: {method.momoName}</p>
-                                <p>Wallet: {method.momoWallet}</p>
-                              </>
+                          )}
+                        </div>
+                      </div>
+                    </>
+                  )}
+                  <div className="w-full h-px bg-accent/20"></div>
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-gray-700">Subtotal</span>
+                      <span className="text-gray-800" style={accentTextStyle}>
+                        {formatMoney(totals.subtotal, form.currency)}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-gray-700">Discount</span>
+                      <span className="text-red-500">
+                        -{formatMoney(totals.discountValue, form.currency)}
+                      </span>
+                    </div>
+                    <div className="flex items-start sm:items-center justify-between text-sm gap-3">
+                      <span className="text-gray-700">
+                        Tax(VAT, GETFund, NHIL):
+                        {summary?.vatPercentage +
+                          summary?.getfundPercentage +
+                          summary?.nhilPercentage}
+                        %
+                      </span>
+                      <span
+                        className="shrink-0 text-gray-800"
+                        style={accentTextStyle}
+                      >
+                        {formatMoney(totals.taxAmount, form.currency)}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between text-base sm:text-lg mt-2">
+                      <span
+                        className="text-accent font-semibold"
+                        style={accentTextStyle}
+                      >
+                        Total
+                      </span>
+                      <span
+                        className="text-gray-800 font-bold"
+                        style={accentTextStyle}
+                      >
+                        {formatMoney(totals.totalAmount, form.currency)}
+                      </span>
+                    </div>
+                  </div>
+                  {((invoiceCustomSettings.showNotes && summary.notes) ||
+                    (invoiceCustomSettings.showTerms && summary.terms)) && (
+                    <>
+                      <div className="w-full h-px bg-accent/20"></div>
+                      {invoiceCustomSettings.showNotes && summary.notes && (
+                        <div>
+                          <p className="text-xs font-medium text-gray-500">
+                            Notes
+                          </p>
+                          <p className="text-sm text-gray-800 whitespace-pre-wrap wrap-break-word">
+                            {summary.notes}
+                          </p>
+                        </div>
+                      )}
+                      {invoiceCustomSettings.showTerms && summary.terms && (
+                        <div>
+                          <p className="text-xs font-medium text-gray-500">
+                            Terms
+                          </p>
+                          <p className="text-sm text-gray-800 whitespace-pre-wrap wrap-break-word">
+                            {summary.terms}
+                          </p>
+                        </div>
+                      )}
+                    </>
+                  )}
+                  {invoiceCustomSettings.showPaymentMethods &&
+                    companySnapshot.paymentMethods.length > 0 && (
+                      <>
+                        <div className="w-full h-px bg-accent/20"></div>
+                        <div>
+                          <p className="text-xs font-medium text-gray-500 mb-2">
+                            Payment Method
+                            {companySnapshot.paymentMethods.length > 1
+                              ? "s"
+                              : ""}
+                          </p>
+                          <div className="flex flex-col sm:flex-row sm:flex-wrap gap-4">
+                            {companySnapshot.paymentMethods.map(
+                              (method, index) => (
+                                <div
+                                  key={index}
+                                  className="text-sm text-gray-700 space-y-0.5 flex-1 min-w-0 sm:min-w-45 wrap-break-word"
+                                >
+                                  <p
+                                    className="font-medium text-accent"
+                                    style={accentTextStyle}
+                                  >
+                                    {method.paymentType === "Bank"
+                                      ? "Bank Transfer"
+                                      : "Mobile Money"}
+                                  </p>
+                                  {method.paymentType === "Bank" ? (
+                                    <>
+                                      <p>Bank: {method.bankName}</p>
+                                      <p>Branch: {method.bankBranch}</p>
+                                      <p>Account Name: {method.accountName}</p>
+                                      <p>
+                                        Account Number: {method.accountNumber}
+                                      </p>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <p>Network: {method.momoVendor}</p>
+                                      <p>Name: {method.momoName}</p>
+                                      <p>Wallet: {method.momoWallet}</p>
+                                    </>
+                                  )}
+                                </div>
+                              ),
                             )}
                           </div>
-                        ))}
+                        </div>
+                      </>
+                    )}
+                  {invoiceCustomSettings.showSignature && signatureSrc && (
+                    <>
+                      <div className="w-full h-px bg-accent/20"></div>
+                      <div className="flex flex-col items-end">
+                        <div className="relative w-32 h-14 sm:w-40 sm:h-16">
+                          <Image
+                            src={signatureSrc}
+                            alt="Signature"
+                            fill
+                            unoptimized
+                            className="object-contain object-right"
+                          />
+                        </div>
+                        <p className="text-xs text-gray-500 mt-1">
+                          Authorized Signature
+                        </p>
                       </div>
-                    </div>
-                  </>
-                )}
+                    </>
+                  )}
+                </div>
               </div>
             </div>
           )}
