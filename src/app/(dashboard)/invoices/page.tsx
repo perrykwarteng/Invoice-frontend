@@ -615,10 +615,8 @@ export default function Invoice() {
           <CustomTable
             data={invoices ?? []}
             pageSize={6}
-            selectable
             loading={invoicesLoading}
             getRowId={(invoice) => invoice.id}
-            onSelectionChange={(ids) => console.log("Selected:", ids)}
             columns={[
               {
                 key: "invoiceNumber",

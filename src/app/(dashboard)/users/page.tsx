@@ -216,9 +216,7 @@ export default function Users() {
           <CustomTable
             data={userData ?? []}
             pageSize={5}
-            selectable
             getRowId={(user) => user.id}
-            onSelectionChange={(ids) => console.log("Selected:", ids)}
             loading={userLoading}
             columns={[
               { key: "name", title: "Name" },

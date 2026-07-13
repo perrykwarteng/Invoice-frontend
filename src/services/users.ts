@@ -35,10 +35,10 @@ export const getUser = async (): Promise<User[]> => {
     }
   }
 };
+
 export const getMe = async (): Promise<User> => {
   try {
     const res = await api.get(`/users/users/me`);
-// console.log(res.data.user);
 
     return res.data.user;
   } catch (error) {

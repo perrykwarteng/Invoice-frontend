@@ -13,7 +13,6 @@ import {
   editClient,
   getClient,
 } from "@/services/client";
-import { useUserStore } from "@/store/useUserStore";
 import { ClientResponseType, ClientType } from "@/types/types";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { DiamondPlus, Pencil, Trash2 } from "lucide-react";
@@ -21,8 +20,6 @@ import { useState } from "react";
 import { toast } from "sonner";
 
 export default function Clients() {
-  const { userInfo } = useUserStore();
-  const userRole = userInfo.user.role;
   const queryClient = useQueryClient();
   const { data: clientData, isLoading } = useQuery({
     queryKey: ["Clients"],
@@ -163,9 +160,7 @@ export default function Clients() {
           <CustomTable
             data={clientData?.reverse() ?? []}
             pageSize={5}
-            selectable
             getRowId={(client) => client.id}
-            onSelectionChange={(ids) => console.log("Selected:", ids)}
             loading={isLoading}
             columns={[
               { key: "name", title: "Client Name" },

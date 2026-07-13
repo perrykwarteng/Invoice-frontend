@@ -223,7 +223,6 @@ export function CustomTable<T extends Record<string, any>>({
         </div>
       </div>
 
-      {/* pagination */}
       {!loading && paginatedData?.length > 0 && (
         <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-5 py-4 border-t border-gray-100 bg-white">
           <p className="text-xs sm:text-sm text-gray-500">
