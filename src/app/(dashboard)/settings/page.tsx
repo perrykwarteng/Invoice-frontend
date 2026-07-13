@@ -8,6 +8,7 @@ import CompanyProfileTab from "@/components/Dashboard/CompanyProfileTab";
 import PaymentMethodsTab from "@/components/Dashboard/PaymentMethodsTab";
 import UserProfileTab from "@/components/Dashboard/UserProfileTab";
 import ChangePasswordTab from "@/components/Dashboard/ChangePasswordTab";
+import InvoiceCustomization from "@/components/Dashboard/InvoiceCustomizationsTab";
 import SettingsSidebar, {
   SettingsTab,
   SettingsTabId,
@@ -28,6 +29,11 @@ const tabs: SettingsTab[] = [
     id: "payment-methods",
     label: "Payment methods",
     description: "Bank and Momo details",
+  },
+  {
+    id: "invoice-customization",
+    label: "Invoice Customization",
+    description: "Customize the look of your invoices",
   },
   {
     id: "user-profile",
@@ -101,12 +107,10 @@ export default function Settings() {
 
           <div className="flex-1 min-w-0">
             {activeTab === "company-profile" && <CompanyProfileTab />}
-
             {activeTab === "payment-methods" && <PaymentMethodsTab />}
-
             {activeTab === "user-profile" && <UserProfileTab />}
-
             {activeTab === "change-password" && <ChangePasswordTab />}
+            {activeTab === "invoice-customization" && <InvoiceCustomization />}
           </div>
         </div>
       </div>

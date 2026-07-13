@@ -153,7 +153,15 @@ export type OrgSettingsType = {
   companyWebsite: string | null;
   companyLogo: imageUrls;
   invoiceFooter: string | null;
+  invoiceCustomization: invoiceCus;
   extras: Record<string, any> | null;
+};
+
+export type invoiceCus = {
+  primaryColor: string | null;
+  secondaryColor: string | null;
+  letterHeadImg:null;
+  signatureImg: null;
 };
 
 export type InvoiceCustomization = {

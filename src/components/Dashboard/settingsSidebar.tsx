@@ -4,7 +4,8 @@ export type SettingsTabId =
   | "company-profile"
   | "payment-methods"
   | "user-profile"
-  | "change-password";
+  | "change-password"
+  | "invoice-customization";
 
 export type SettingsTab = {
   id: SettingsTabId;
@@ -55,7 +56,6 @@ export default function SettingsSidebar({
                 isActive ? "bg-bg-soft" : "hover:bg-bg-soft/50"
               }`}
             >
-              
               <span className="flex flex-col">
                 <span
                   className={`text-sm font-semibold ${

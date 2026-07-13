@@ -30,6 +30,12 @@ export const useSettingsStore = create<Settings>()(
           imageUrl: "",
           public_id: "",
         },
+        invoiceCustomization: {
+          primaryColor: "",
+          secondaryColor: "",
+          letterHeadImg: null,
+          signatureImg: null,
+        },
         invoiceFooter: null,
         extras: null,
       },

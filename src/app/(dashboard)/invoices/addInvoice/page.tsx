@@ -211,6 +211,22 @@ export default function AddInvoice() {
       address: settingsData.companyAddress ?? "",
       logo: settingsData.companyLogo ?? null,
     }));
+
+    setInvoiceCustomSettings({
+      primaryColor: settingsData.invoiceCustomization.primaryColor,
+      secondaryColor: settingsData.invoiceCustomization.secondaryColor,
+      letterHeadImg: settingsData.invoiceCustomization.letterHeadImg,
+      signatureImg: settingsData.invoiceCustomization.signatureImg,
+
+      showLogo: true,
+      showLetterHead: true,
+      showSignature: true,
+      showCompanySnapshot: true,
+      showPaymentMethods: true,
+      showNotes: true,
+      showTerms: true,
+      showItemTable: true,
+    });
   }, [settingsData]);
 
   const togglePaymentMethod = (method: PaymentMethod) => {

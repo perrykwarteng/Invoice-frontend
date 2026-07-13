@@ -94,3 +94,26 @@ export const changePassword = async ({
     }
   }
 };
+
+export const updateInvoiceCustomization = async (data: FormData) => {
+  try {
+    const res = await api.patch(
+      `/settings/settings/updateInvoiceCustomization`,
+      data,
+      {
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
+      },
+    );
+
+    return res.data;
+  } catch (error) {
+    const Errors = error as AxiosError;
+    if (Errors.response) {
+      throw Errors.response.data;
+    } else {
+      throw new Error(Errors.message);
+    }
+  }
+};

@@ -246,8 +246,6 @@ export default function PaymentMethodsTab() {
     orgSettings?.paymentMethod,
   );
 
-  console.log(orgSettings!.paymentMethod);
-
   const { mutate: paymentMutate, isPending: paymentPending } = useMutation({
     mutationFn: updatePaymentMethods,
     onSuccess: (data) => {
