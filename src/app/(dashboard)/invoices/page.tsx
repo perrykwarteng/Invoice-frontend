@@ -601,6 +601,7 @@ export default function Invoice() {
   };
 
   const logoSrc = getLogoSrc(companySnapshot.logo);
+  
   const letterHeadHeaderSrc = getAssetSrc(
     invoiceCustomSettings.letterHeadHeaderImg,
   );
@@ -1603,10 +1604,10 @@ export default function Invoice() {
                               </label>
                             </div>
 
-                            {letterHeadHeaderSrc ? (
+                            {letterHeadFooterSrc ? (
                               <div className="relative w-full h-20 rounded border border-accent/15 overflow-hidden bg-gray-50 mb-2">
                                 <Image
-                                  src={letterHeadHeaderSrc}
+                                  src={letterHeadFooterSrc}
                                   alt="Letterhead preview"
                                   fill
                                   unoptimized

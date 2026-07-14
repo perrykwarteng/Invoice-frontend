@@ -427,6 +427,7 @@ export default function AddInvoice() {
     formData.append("terms", String(summary.terms));
     formData.append("companySnapshot", JSON.stringify(companySnapshot));
     formData.append("invoiceItem", JSON.stringify(items));
+    
     if (invoiceCustomSettings.letterHeadHeaderImg instanceof File) {
       formData.append(
         "letterHeadHeaderImg",
@@ -1175,7 +1176,7 @@ export default function AddInvoice() {
                     <div className="bg-white rounded-md border border-accent/20 p-3">
                       <div className="flex items-center gap-2 mb-2">
                         <label className="text-sm font-medium text-accent">
-                          Letterhead Image
+                          Letterhead Header Image
                         </label>
                       </div>
 
