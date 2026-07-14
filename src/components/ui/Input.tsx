@@ -4,7 +4,7 @@ import { LucideIcon } from "lucide-react";
 
 interface CustomInputProps {
   label?: string;
-  id: string;
+  id?: string;
   type?: "text" | "email" | "password" | "number" | "date";
   name?: string;
   placeholder?: string;

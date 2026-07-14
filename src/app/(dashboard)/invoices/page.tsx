@@ -14,6 +14,7 @@ import ToggleSwitch from "@/components/ui/toggle";
 import queryClient from "@/lib/query-client";
 import { getClient } from "@/services/client";
 import {
+  createInvoice,
   deleteInvoice,
   editInvoice,
   getInvoices,
@@ -32,7 +33,14 @@ import {
 } from "@/types/types";
 
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { DiamondPlus, Pencil, Trash2, Plus, Download } from "lucide-react";
+import {
+  DiamondPlus,
+  Pencil,
+  Trash2,
+  Plus,
+  Download,
+  ListRestart,
+} from "lucide-react";
 
 import Image from "next/image";
 import { useRouter } from "next/navigation";
@@ -259,17 +267,23 @@ function buildInvoiceFormData(
 export default function Invoice() {
   const { userInfo } = useUserStore();
   const userRole = userInfo.user.role;
+  const [searchTerm, setSearchTerm] = useState("");
+  const [activeTab, setActiveTab] = useState<"All" | "Drafts" | "Overdue">(
+    "All",
+  );
+
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(50);
   const [id, setID] = useState(0);
   const [openConfrim, setOpenConfirm] = useState(false);
   const [openDownloadConfrim, setOpenDownloadConfrim] = useState(false);
   const [isEdit, setIsEdit] = useState(false);
+  const [isReCreate, setIsReCreate] = useState(false);
   const [isPreview, setIsPreview] = useState(false);
   const [customizeInvoice, setCustomizeInvoice] = useState(false);
   const route = useRouter();
 
-  const { data: invoices, isLoading: invoicesLoading } = useQuery({
+  const { data: invoices = [], isLoading: invoicesLoading } = useQuery({
     queryKey: ["Invoices"],
     queryFn: () => getInvoices(page, limit),
   });
@@ -294,10 +308,14 @@ export default function Invoice() {
     [clientData],
   );
 
+  const recreateInvoiceNumber = `${settingsData?.invoicePrefix ?? ""}${String(
+    settingsData?.nextInvoiceNumber ?? 0,
+  ).padStart(4, "0")}`;
+
   const { data: singleInvoice, isLoading: singleInvoiceLoading } = useQuery({
     queryKey: ["SingleInvoice", id],
     queryFn: () => getSingleInvoice(id),
-    enabled: (isEdit && id !== 0) || openDownloadConfrim,
+    enabled: ((isEdit || isReCreate) && id !== 0) || openDownloadConfrim,
   });
 
   const [form, setForm] = useState(formInitialState);
@@ -312,9 +330,16 @@ export default function Invoice() {
     useState<InvoiceCustomization>(invoiceCustomizationInitialState);
 
   useEffect(() => {
-    if (!singleInvoice || !id || (!isEdit && !openDownloadConfrim)) return;
+    if (
+      !singleInvoice ||
+      !id ||
+      (!isEdit && !openDownloadConfrim && !isReCreate)
+    )
+      return;
     setForm({
-      invoiceNumber: singleInvoice.invoiceNumber ?? "",
+      invoiceNumber: isReCreate
+        ? recreateInvoiceNumber
+        : (singleInvoice.invoiceNumber ?? ""),
       issueDate: singleInvoice.issueDate
         ? singleInvoice.issueDate.split("T")[0]
         : "",
@@ -372,7 +397,14 @@ export default function Invoice() {
       showTerms: singleInvoice.invoiceCustomization?.showTerms ?? true,
       showItemTable: singleInvoice.invoiceCustomization?.showItemTable ?? true,
     });
-  }, [singleInvoice, isEdit, openDownloadConfrim, id]);
+  }, [
+    singleInvoice,
+    isEdit,
+    openDownloadConfrim,
+    id,
+    isReCreate,
+    recreateInvoiceNumber,
+  ]);
 
   useEffect(() => {
     const selectedClient = clientData?.find(
@@ -484,6 +516,7 @@ export default function Invoice() {
 
   const resetDrawerState = () => {
     setIsEdit(false);
+    setIsReCreate(false);
     setID(0);
     setForm(formInitialState);
     setClient("");
@@ -526,7 +559,23 @@ export default function Invoice() {
       },
     });
 
-  const handleUpdateInvoice = () => {
+  const { mutate: invoiceCreateMutate, isPending: invoiceCreatePending } =
+    useMutation({
+      mutationKey: ["InvoiceCreate"],
+      mutationFn: (formData: FormData) => createInvoice(formData),
+      onSuccess: (data) => {
+        toast.success(data.message ?? "Invoice created");
+        queryClient.invalidateQueries({ queryKey: ["Invoices"] });
+        queryClient.invalidateQueries({ queryKey: ["InvoicesStats"] });
+        queryClient.invalidateQueries({ queryKey: ["OrgSettings"] });
+        resetDrawerState();
+      },
+      onError: (data: any) => {
+        toast.error(data?.message ?? "Failed to create invoice");
+      },
+    });
+
+  const handleSubmitInvoice = () => {
     const formData = buildInvoiceFormData(
       form,
       companySnapshot,
@@ -536,7 +585,12 @@ export default function Invoice() {
       totals,
       invoiceCustomSettings,
     );
-    invoiceUpdateMutate(formData);
+
+    if (isReCreate) {
+      invoiceCreateMutate(formData);
+    } else {
+      invoiceUpdateMutate(formData);
+    }
   };
 
   const logoSrc = getLogoSrc(companySnapshot.logo);
@@ -552,6 +606,38 @@ export default function Invoice() {
   const accentBgStyle = previewPrimary
     ? { backgroundColor: previewPrimary }
     : undefined;
+
+  const filteredInvoices = useMemo(() => {
+    let result = [...invoices];
+
+    if (activeTab !== "All") {
+      result = result.filter((invoice: any) => {
+        if (activeTab === "Drafts") {
+          return invoice.status === "draft";
+        }
+        if (activeTab === "Overdue") {
+          const dueDate = new Date(invoice.dueDate);
+          const today = new Date();
+          return dueDate < today && invoice.status !== "paid";
+        }
+        return true;
+      });
+    }
+
+    if (searchTerm.trim()) {
+      const term = searchTerm.toLowerCase().trim();
+      result = result.filter((invoice: any) => {
+        return (
+          invoice.invoiceNumber?.toLowerCase().includes(term) ||
+          invoice.companySnapshot?.name?.toLowerCase().includes(term) ||
+          invoice.clientInfo?.name?.toLowerCase().includes(term) ||
+          invoice.status?.toLowerCase().includes(term)
+        );
+      });
+    }
+
+    return result;
+  }, [invoices, searchTerm, activeTab]);
 
   const [downloadingPdf, setDownloadingPdf] = useState(false);
 
@@ -599,21 +685,24 @@ export default function Invoice() {
                 totalInvoices: 0,
               }
             }
-            onChange={(tab) => console.log(tab)}
+            onChange={(tab) =>
+              setActiveTab(tab as "All" | "Drafts" | "Overdue")
+            }
           />
           <div className="w-100">
             <CustomInput
               type="text"
               id="search"
-              placeholder="search..."
-              onChange={() => {}}
+              placeholder="Search by invoice #, client, or company..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
             />
           </div>
         </div>
 
         <div className="mt-5">
           <CustomTable
-            data={invoices ?? []}
+            data={filteredInvoices}
             pageSize={6}
             loading={invoicesLoading}
             getRowId={(invoice) => invoice.id}
@@ -677,6 +766,9 @@ export default function Invoice() {
             showActions
             renderActions={(invoice) => (
               <div className="flex items-center justify-end gap-2">
+                {/* <div className="text-center">
+                  <Select list={["Save", "Draft Invoice"]} />
+                </div> */}
                 <button
                   className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium rounded-md
                  bg-primary/10 text-primary hover:bg-accent/20 transition"
@@ -686,6 +778,17 @@ export default function Invoice() {
                   }}
                 >
                   <Download className="w-3.5 h-3.5" />
+                </button>
+                <button
+                  className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium rounded-md
+                 bg-primary/10 text-primary hover:bg-accent/20 transition"
+                  onClick={() => {
+                    setID(invoice.id);
+                    setIsReCreate(true);
+                    setIsEdit(false);
+                  }}
+                >
+                  <ListRestart className="w-3.5 h-3.5" />
                 </button>
 
                 {/* <button
@@ -701,6 +804,7 @@ export default function Invoice() {
                   onClick={() => {
                     setID(invoice.id);
                     setIsEdit(true);
+                    setIsReCreate(false);
                   }}
                 >
                   <Pencil className="w-3.5 h-3.5" />
@@ -767,10 +871,14 @@ export default function Invoice() {
       />
 
       <Drawer
-        open={isEdit}
+        open={isEdit || isReCreate}
         onClose={resetDrawerState}
         width="xl2"
-        title={`Edit Invoice ${singleInvoice?.invoiceNumber || "INV-----"}`}
+        title={
+          isEdit
+            ? `Edit Invoice ${singleInvoice?.invoiceNumber || "INV-----"}`
+            : `Recreate Invoice ${recreateInvoiceNumber || "INV-----"}`
+        }
       >
         <div className="bg-white rounded-lg border-2 border-accent/30 p-4 sm:p-5 flex-1 space-y-6">
           {singleInvoiceLoading ? (
@@ -1568,12 +1676,20 @@ export default function Invoice() {
                     <div className="w-full sm:w-40">
                       <Button
                         type="submit"
-                        loading={invoiceUpdatePending}
-                        disabled={invoiceUpdatePending}
-                        onClick={handleUpdateInvoice}
+                        loading={
+                          isReCreate
+                            ? invoiceCreatePending
+                            : invoiceUpdatePending
+                        }
+                        disabled={
+                          isReCreate
+                            ? invoiceCreatePending
+                            : invoiceUpdatePending
+                        }
+                        onClick={handleSubmitInvoice}
                         className="w-full"
                       >
-                        Update Invoice
+                        {isReCreate ? "Create Invoice" : "Update Invoice"}{" "}
                       </Button>
                     </div>
                   </div>

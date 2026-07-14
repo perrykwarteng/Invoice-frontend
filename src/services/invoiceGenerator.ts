@@ -304,6 +304,33 @@ export async function generateInvoicePDF(
     y = letterHeadHeight + 8;
   }
 
+ 
+  const drawLetterHeadOnNewPage = (): number => {
+    if (
+      invoiceCustomization.showLetterHead &&
+      letterHeadBase64 &&
+      letterHeadHeight > 0
+    ) {
+      addImageSafe(doc, letterHeadBase64, 0, 0, PAGE_W, letterHeadHeight);
+      return letterHeadHeight + 8;
+    }
+    return MARGIN;
+  };
+
+  
+  let justBrokePage = false;
+
+
+  const ensureSpace = (yCur: number, needed: number): number => {
+    if (yCur + needed > PAGE_H - MARGIN) {
+      doc.addPage();
+      justBrokePage = true;
+      return drawLetterHeadOnNewPage();
+    }
+    justBrokePage = false;
+    return yCur;
+  };
+
   /* ---- Header ---- */
   const headerTop = y;
 
@@ -430,8 +457,8 @@ export async function generateInvoicePDF(
       doc.setTextColor(ar, ag, ab);
 
       visibleItems.forEach((item) => {
-        y = ensureSpace(doc, y, rowH + 2);
-        if (y === MARGIN) {
+        y = ensureSpace(y, rowH + 2);
+        if (justBrokePage) {
           drawTableHeader();
         }
         const nameLines = doc.splitTextToSize(
@@ -461,7 +488,7 @@ export async function generateInvoicePDF(
   }
 
   /* ---- Totals ---- */
-  y = ensureSpace(doc, y, 40);
+  y = ensureSpace(y, 40);
   divider(y);
   y += 6;
 
@@ -512,7 +539,7 @@ export async function generateInvoicePDF(
   const hasNotes = invoiceCustomization.showNotes && summary.notes;
   const hasTerms = invoiceCustomization.showTerms && summary.terms;
   if (hasNotes || hasTerms) {
-    y = ensureSpace(doc, y, 20);
+    y = ensureSpace(y, 20);
     divider(y);
     y += 6;
 
@@ -526,7 +553,7 @@ export async function generateInvoicePDF(
       doc.setFontSize(9.5);
       doc.setTextColor(50, 50, 50);
       const lines = doc.splitTextToSize(text, CONTENT_W);
-      y = ensureSpace(doc, y, lines.length * 4.5);
+      y = ensureSpace(y, lines.length * 4.5);
       doc.text(lines, MARGIN, y);
       y += lines.length * 4.5 + 4;
     };
@@ -540,7 +567,7 @@ export async function generateInvoicePDF(
     invoiceCustomization.showPaymentMethods &&
     companySnapshot.paymentMethods.length > 0
   ) {
-    y = ensureSpace(doc, y, 20);
+    y = ensureSpace(y, 20);
     divider(y);
     y += 6;
     doc.setFont("helvetica", "bold");
@@ -596,7 +623,7 @@ export async function generateInvoicePDF(
       if (colIndex === 2) {
         colIndex = 0;
         rowStartY = Math.max(rowStartY, my) + 4;
-        rowStartY = ensureSpace(doc, rowStartY, 20);
+        rowStartY = ensureSpace(rowStartY, 20);
       }
     });
 
@@ -605,7 +632,7 @@ export async function generateInvoicePDF(
 
   /* ---- Signature ---- */
   if (invoiceCustomization.showSignature && signatureBase64) {
-    y = ensureSpace(doc, y, 30);
+    y = ensureSpace(y, 30);
     divider(y);
     y += 8;
     const w = 40;

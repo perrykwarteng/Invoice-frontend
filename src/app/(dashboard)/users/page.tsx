@@ -1,5 +1,4 @@
 "use client";
-
 import DashboardHeader from "@/components/Dashboard/DashboardHeader";
 import DashboardLayout from "@/components/layouts/DashboardLayout";
 import Button from "@/components/ui/btn";
@@ -12,7 +11,7 @@ import { createUser, deleteUser, editUser, getUser } from "@/services/users";
 import { User } from "@/types/types";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { DiamondPlus, Pencil, Trash2 } from "lucide-react";
-import { useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
 const roleStyles: Record<string, string> = {
@@ -31,10 +30,15 @@ const emptyForm = {
 export default function Users() {
   const queryClient = useQueryClient();
 
-  const { data: userData, isLoading: userLoading } = useQuery({
+  const { data: userData = [], isLoading: userLoading } = useQuery({
     queryKey: ["Users"],
     queryFn: getUser,
   });
+
+  const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilter, setStatusFilter] = useState<
+    "All" | "Active" | "Inactive"
+  >("All");
 
   const [isEdit, setIsEdit] = useState(false);
   const [open, setOpen] = useState(false);
@@ -42,26 +46,35 @@ export default function Users() {
   const [openConfirm, setOpenConfirm] = useState(false);
   const [form, setForm] = useState(emptyForm);
   const [profilePic, setProfilePic] = useState<File | null>(null);
-
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
+  const filteredUsers = useMemo(() => {
+    return userData.filter((user: User) => {
+      const matchesSearch =
+        !searchTerm ||
+        user.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        user.email?.toLowerCase().includes(searchTerm.toLowerCase());
+
+      const matchesStatus =
+        statusFilter === "All" ||
+        (statusFilter === "Active" && user.isActive) ||
+        (statusFilter === "Inactive" && !user.isActive);
+
+      return matchesSearch && matchesStatus;
+    });
+  }, [userData, searchTerm, statusFilter]);
+
   const handleChange = (field: string, value: any) => {
-    setForm((prev) => ({
-      ...prev,
-      [field]: value,
-    }));
+    setForm((prev) => ({ ...prev, [field]: value }));
   };
 
   const handleFileChange = (file: File | null) => {
     if (!file) return;
-
     const MAX_SIZE = 2 * 1024 * 1024;
-
     if (file.size > MAX_SIZE) {
       toast.error("Image must be 2MB or less");
       return;
     }
-
     setProfilePic(file);
   };
 
@@ -82,9 +95,7 @@ export default function Users() {
         queryClient.invalidateQueries({ queryKey: ["Users"] });
         resetModalState();
       },
-      onError: (data: any) => {
-        toast.error(data.message);
-      },
+      onError: (data: any) => toast.error(data.message),
     });
 
   const { mutate: UpdateUserMutate, isPending: updateUserPending } =
@@ -97,9 +108,7 @@ export default function Users() {
         queryClient.invalidateQueries({ queryKey: ["Users"] });
         resetModalState();
       },
-      onError: (data: any) => {
-        toast.error(data.message);
-      },
+      onError: (data: any) => toast.error(data.message),
     });
 
   const { mutate: deleteUserMutate, isPending: deleteUserPending } =
@@ -112,42 +121,29 @@ export default function Users() {
         setOpenConfirm(false);
         setId(null);
       },
-      onError: (data: any) => {
-        toast.error(data.message);
-      },
+      onError: (data: any) => toast.error(data.message),
     });
 
   const buildFormData = () => {
     const formData = new FormData();
     formData.append("name", form.name);
     formData.append("email", form.email);
-    if (form.password) {
-      formData.append("password", form.password);
-    }
+    if (form.password) formData.append("password", form.password);
     formData.append("role", form.role);
     formData.append("isActive", String(form.isActive));
-
-    if (profilePic) {
-      formData.append("profilePic", profilePic);
-    }
+    if (profilePic) formData.append("profilePic", profilePic);
     return formData;
   };
 
-  const handleCreateUser = () => {
-    CreateUserMutate(buildFormData());
-  };
-
+  const handleCreateUser = () => CreateUserMutate(buildFormData());
   const handleUpdateUser = () => {
     if (id == null) return;
     UpdateUserMutate({ id, formData: buildFormData() });
   };
 
   const handleSubmit = () => {
-    if (isEdit) {
-      handleUpdateUser();
-    } else {
-      handleCreateUser();
-    }
+    if (isEdit) handleUpdateUser();
+    else handleCreateUser();
   };
 
   const handleEdit = (user: User) => {
@@ -192,88 +188,87 @@ export default function Users() {
           </Button>
         </DashboardHeader>
 
-        <div className="flex items-center gap-x-3">
-          <div className="w-100">
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="w-full sm:w-80">
             <CustomInput
               type="text"
               id="search"
-              placeholder="search..."
-              onChange={() => {}}
+              placeholder="Search by name or email..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
             />
           </div>
 
-          <div className="z-40">
+          <div className="w-full sm:w-48 z-20">
             <Select
-              list={["Active", "Inactive"]}
+              list={["All", "Active", "Inactive"]}
               scrollHeight="max-h-40"
               text="Filter by Status"
-              onChange={() => {}}
+              value={statusFilter}
+              onChange={(value: string) =>
+                setStatusFilter(value as "All" | "Active" | "Inactive")
+              }
             />
           </div>
         </div>
 
-        <div className="">
-          <CustomTable
-            data={userData ?? []}
-            pageSize={5}
-            getRowId={(user) => user.id}
-            loading={userLoading}
-            columns={[
-              { key: "name", title: "Name" },
-              { key: "email", title: "Email" },
-              {
-                key: "role",
-                title: "Role",
-                render: (user) => {
-                  const role = user.role;
-                  return (
-                    <span
-                      className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium border ${
-                        roleStyles[role] || roleStyles.user
-                      }`}
-                    >
-                      {role}
-                    </span>
-                  );
-                },
+        <CustomTable
+          data={filteredUsers}
+          pageSize={5}
+          getRowId={(user) => user.id}
+          loading={userLoading}
+          columns={[
+            { key: "name", title: "Name" },
+            { key: "email", title: "Email" },
+            {
+              key: "role",
+              title: "Role",
+              render: (user) => {
+                const role = user.role;
+                return (
+                  <span
+                    className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium border ${
+                      roleStyles[role] || "bg-gray-100 text-gray-600"
+                    }`}
+                  >
+                    {role}
+                  </span>
+                );
               },
-            ]}
-            showStatus
-            renderStatus={(user) => (
-              <span
-                className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium border
-                  ${
-                    user.isActive
-                      ? "bg-green-50 text-green-600 border-green-200"
-                      : "bg-red-50 text-red-600 border-red-200"
-                  }`}
+            },
+          ]}
+          showStatus
+          renderStatus={(user) => (
+            <span
+              className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium border ${
+                user.isActive
+                  ? "bg-green-50 text-green-600 border-green-200"
+                  : "bg-red-50 text-red-600 border-red-200"
+              }`}
+            >
+              {user.isActive ? "Active" : "Inactive"}
+            </span>
+          )}
+          showActions
+          renderActions={(user) => (
+            <div className="flex items-center justify-end gap-2">
+              <button
+                className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium rounded-md bg-accent/10 text-accent hover:bg-accent/20 transition"
+                onClick={() => handleEdit(user)}
               >
-                {user.isActive ? "Active" : "Inactive"}
-              </span>
-            )}
-            showActions
-            renderActions={(user) => (
-              <div className="flex items-center justify-end gap-2">
-                <button
-                  className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium rounded-md
-                  bg-accent/10 text-accent hover:bg-accent/20 transition"
-                  onClick={() => handleEdit(user)}
-                >
-                  <Pencil className="w-3.5 h-3.5" />
-                  Edit
-                </button>
-                <button
-                  className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium rounded-md
-                  bg-red-50 text-red-600 hover:bg-red-100 transition"
-                  onClick={() => openDeleteConfirm(user.id)}
-                >
-                  <Trash2 className="w-3.5 h-3.5" />
-                  Delete
-                </button>
-              </div>
-            )}
-          />
-        </div>
+                <Pencil className="w-3.5 h-3.5" />
+                Edit
+              </button>
+              <button
+                className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium rounded-md bg-red-50 text-red-600 hover:bg-red-100 transition"
+                onClick={() => openDeleteConfirm(user.id)}
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                Delete
+              </button>
+            </div>
+          )}
+        />
       </div>
 
       <Modal
@@ -283,12 +278,10 @@ export default function Users() {
         size="lg"
         footer={
           <div className="flex justify-end gap-3 w-full">
-            <Button className="" variant="outline" onClick={resetModalState}>
+            <Button variant="outline" onClick={resetModalState}>
               Cancel
             </Button>
-
             <Button
-              className=""
               variant="primary"
               onClick={handleSubmit}
               loading={isEdit ? updateUserPending : createUserPending}
@@ -302,31 +295,25 @@ export default function Users() {
           <CustomInput
             label="Full Name"
             value={form.name}
-            id="fullName"
             placeholder="Emmanuel Kusi"
             onChange={(e: any) => handleChange("name", e.target.value)}
           />
-
           <CustomInput
             label="Email"
             value={form.email}
-            id="email"
             placeholder="emmanuel@infinitytel.com"
             disabled={isEdit}
             onChange={(e: any) => handleChange("email", e.target.value)}
           />
-
           {!isEdit && (
             <CustomInput
               label="Password"
               type="password"
               value={form.password}
-              id="password"
               placeholder="***********"
               onChange={(e: any) => handleChange("password", e.target.value)}
             />
           )}
-
           <Select
             label="Role"
             text="Select Role"
@@ -334,7 +321,6 @@ export default function Users() {
             value={form.role}
             onChange={(value: string) => handleChange("role", value)}
           />
-
           <Select
             label="Status"
             text="Select Status"
@@ -344,12 +330,10 @@ export default function Users() {
               handleChange("isActive", value === "Active")
             }
           />
-
           <div className="md:col-span-2">
             <label className="block text-sm font-medium mb-1">
               Profile Picture
             </label>
-
             <div
               onClick={() => fileInputRef.current?.click()}
               onDragOver={(e) => e.preventDefault()}
@@ -372,7 +356,6 @@ export default function Users() {
                 </p>
               )}
             </div>
-
             <input
               ref={fileInputRef}
               type="file"
@@ -387,10 +370,8 @@ export default function Users() {
       <ConfirmationModal
         open={openConfirm}
         title="Confirm Deletion"
-        message={"Are you sure you want to delete this user?"}
-        onConfirm={() => {
-          if (id != null) deleteUserMutate(id);
-        }}
+        message="Are you sure you want to delete this user?"
+        onConfirm={() => id !== null && deleteUserMutate(id)}
         onCancel={() => {
           setOpenConfirm(false);
           setId(null);
