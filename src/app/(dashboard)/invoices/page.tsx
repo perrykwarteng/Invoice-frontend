@@ -106,7 +106,8 @@ const summaryInitialState = {
 const invoiceCustomizationInitialState: InvoiceCustomization = {
   primaryColor: "",
   secondaryColor: "",
-  letterHeadImg: null,
+  letterHeadHeaderImg: null,
+  letterHeadFooterImg: null,
   signatureImg: null,
   showLogo: true,
   showLetterHead: true,
@@ -254,8 +255,11 @@ function buildInvoiceFormData(
 
   fd.append("invoiceCustomization", JSON.stringify(invoiceCustomSettings));
 
-  if (invoiceCustomSettings.letterHeadImg instanceof File) {
-    fd.append("letterHeadImg", invoiceCustomSettings.letterHeadImg);
+  if (invoiceCustomSettings.letterHeadHeaderImg instanceof File) {
+    fd.append("letterHeadHeaderImg", invoiceCustomSettings.letterHeadHeaderImg);
+  }
+  if (invoiceCustomSettings.letterHeadFooterImg instanceof File) {
+    fd.append("letterHeadFooterImg", invoiceCustomSettings.letterHeadFooterImg);
   }
   if (invoiceCustomSettings.signatureImg instanceof File) {
     fd.append("signatureImg", invoiceCustomSettings.signatureImg);
@@ -383,7 +387,10 @@ export default function Invoice() {
       primaryColor: singleInvoice.invoiceCustomization?.primaryColor ?? null,
       secondaryColor:
         singleInvoice.invoiceCustomization?.secondaryColor ?? null,
-      letterHeadImg: singleInvoice.invoiceCustomization?.letterHeadImg ?? null,
+      letterHeadHeaderImg:
+        singleInvoice.invoiceCustomization?.letterHeadHeaderImg ?? null,
+      letterHeadFooterImg:
+        singleInvoice.invoiceCustomization?.letterHeadFooterImg ?? null,
       signatureImg: singleInvoice.invoiceCustomization?.signatureImg ?? null,
       showLogo: singleInvoice.invoiceCustomization?.showLogo ?? true,
       showLetterHead:
@@ -594,7 +601,12 @@ export default function Invoice() {
   };
 
   const logoSrc = getLogoSrc(companySnapshot.logo);
-  const letterHeadSrc = getAssetSrc(invoiceCustomSettings.letterHeadImg);
+  const letterHeadHeaderSrc = getAssetSrc(
+    invoiceCustomSettings.letterHeadHeaderImg,
+  );
+  const letterHeadFooterSrc = getAssetSrc(
+    invoiceCustomSettings.letterHeadFooterImg,
+  );
   const signatureSrc = getAssetSrc(invoiceCustomSettings.signatureImg);
 
   const previewPrimary = invoiceCustomSettings.primaryColor || undefined;
@@ -1532,14 +1544,14 @@ export default function Invoice() {
                           <div className="bg-white rounded-md border border-accent/20 p-3">
                             <div className="flex items-center gap-2 mb-2">
                               <label className="text-sm font-medium text-accent">
-                                Letterhead Image
+                                Letterhead Header Image
                               </label>
                             </div>
 
-                            {letterHeadSrc ? (
+                            {letterHeadHeaderSrc ? (
                               <div className="relative w-full h-20 rounded border border-accent/15 overflow-hidden bg-gray-50 mb-2">
                                 <Image
-                                  src={letterHeadSrc}
+                                  src={letterHeadHeaderSrc}
                                   alt="Letterhead preview"
                                   fill
                                   unoptimized
@@ -1548,7 +1560,7 @@ export default function Invoice() {
                               </div>
                             ) : (
                               <div className="w-full h-20 rounded border border-dashed border-accent/25 flex items-center justify-center text-xs text-gray-400 mb-2">
-                                No letterhead uploaded
+                                No letterhead Header uploaded
                               </div>
                             )}
 
@@ -1563,17 +1575,72 @@ export default function Invoice() {
                     file:cursor-pointer hover:file:opacity-90"
                                 onChange={(e) =>
                                   handleInvCustomization(
-                                    "letterHeadImg",
+                                    "letterHeadHeaderImg",
                                     e.target.files?.[0] || null,
                                   )
                                 }
                               />
-                              {invoiceCustomSettings.letterHeadImg && (
+                              {invoiceCustomSettings.letterHeadHeaderImg && (
                                 <button
                                   type="button"
                                   onClick={() =>
                                     handleInvCustomization(
-                                      "letterHeadImg",
+                                      "letterHeadHeaderImg",
+                                      null,
+                                    )
+                                  }
+                                  className="text-xs text-gray-400 hover:text-red-500 shrink-0"
+                                >
+                                  Remove
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                          <div className="bg-white rounded-md border border-accent/20 p-3">
+                            <div className="flex items-center gap-2 mb-2">
+                              <label className="text-sm font-medium text-accent">
+                                Letterhead Footer Image
+                              </label>
+                            </div>
+
+                            {letterHeadHeaderSrc ? (
+                              <div className="relative w-full h-20 rounded border border-accent/15 overflow-hidden bg-gray-50 mb-2">
+                                <Image
+                                  src={letterHeadHeaderSrc}
+                                  alt="Letterhead preview"
+                                  fill
+                                  unoptimized
+                                  className="object-cover"
+                                />
+                              </div>
+                            ) : (
+                              <div className="w-full h-20 rounded border border-dashed border-accent/25 flex items-center justify-center text-xs text-gray-400 mb-2">
+                                No letterhead Footer uploaded
+                              </div>
+                            )}
+
+                            <div className="flex items-center gap-2">
+                              <input
+                                type="file"
+                                accept="image/*"
+                                className="block w-full text-xs text-gray-600
+                    file:mr-2 file:py-1.5 file:px-3
+                    file:rounded-md file:border-0
+                    file:bg-accent file:text-white file:text-xs
+                    file:cursor-pointer hover:file:opacity-90"
+                                onChange={(e) =>
+                                  handleInvCustomization(
+                                    "letterHeadFooterImg",
+                                    e.target.files?.[0] || null,
+                                  )
+                                }
+                              />
+                              {invoiceCustomSettings.letterHeadFooterImg && (
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    handleInvCustomization(
+                                      "letterHeadFooterImg",
                                       null,
                                     )
                                   }

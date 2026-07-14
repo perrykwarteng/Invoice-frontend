@@ -41,7 +41,8 @@ export interface PdfTotals {
 export interface PdfInvoiceCustomization {
   primaryColor: string | null;
   secondaryColor: string | null;
-  letterHeadImg: PdfImageSource;
+  letterHeadHeaderImg: PdfImageSource;
+  letterHeadFooterImg: PdfImageSource;
   signatureImg: PdfImageSource;
   showLogo: boolean;
   showLetterHead: boolean;
@@ -248,7 +249,10 @@ export async function generateInvoicePDF(
     primaryColor: invoiceCustomization.primaryColor,
     secondaryColor: invoiceCustomization.secondaryColor,
     resolvedAccentHex: accentHex,
-    hasLetterHeadSource: Boolean(invoiceCustomization.letterHeadImg),
+    hasLetterHeadSource: Boolean(invoiceCustomization.letterHeadHeaderImg),
+    hasLetterHeadFooterSource: Boolean(
+      invoiceCustomization.letterHeadFooterImg,
+    ),
     hasSignatureSource: Boolean(invoiceCustomization.signatureImg),
     toggles: {
       showLogo: invoiceCustomization.showLogo,
@@ -262,7 +266,12 @@ export async function generateInvoicePDF(
     },
   });
 
-  const [logoBase64Raw, letterHeadBase64, signatureBase64] = await Promise.all([
+  const [
+    logoBase64Raw,
+    letterHeadBase64,
+    letterHeadFooterBase64,
+    signatureBase64,
+  ] = await Promise.all([
     resolveImageToBase64(companySnapshot.logo, "logo").then((b) =>
       b !== null
         ? b
@@ -271,7 +280,14 @@ export async function generateInvoicePDF(
             "fallback logo",
           ),
     ),
-    resolveImageToBase64(invoiceCustomization.letterHeadImg, "letterhead"),
+    resolveImageToBase64(
+      invoiceCustomization.letterHeadHeaderImg,
+      "letterhead header",
+    ),
+    resolveImageToBase64(
+      invoiceCustomization.letterHeadFooterImg,
+      "letterhead footer",
+    ),
     resolveImageToBase64(invoiceCustomization.signatureImg, "signature"),
   ]);
 
@@ -295,6 +311,36 @@ export async function generateInvoicePDF(
   let y = MARGIN;
 
   let letterHeadHeight = 0;
+  let letterHeadFooterHeight = 0;
+
+  if (invoiceCustomization.showLetterHead && letterHeadFooterBase64) {
+    const footerProps = doc.getImageProperties(letterHeadFooterBase64);
+    letterHeadFooterHeight = (PAGE_W * footerProps.height) / footerProps.width;
+  }
+
+  // Reserve space above the footer so body content never draws under it.
+  // Falls back to the normal bottom margin when there's no footer image.
+  const bottomLimit =
+    invoiceCustomization.showLetterHead && letterHeadFooterBase64
+      ? PAGE_H - MARGIN - letterHeadFooterHeight
+      : PAGE_H - MARGIN;
+
+  const drawLetterHeadFooter = () => {
+    if (
+      invoiceCustomization.showLetterHead &&
+      letterHeadFooterBase64 &&
+      letterHeadFooterHeight > 0
+    ) {
+      addImageSafe(
+        doc,
+        letterHeadFooterBase64,
+        0,
+        PAGE_H - letterHeadFooterHeight,
+        PAGE_W,
+        letterHeadFooterHeight,
+      );
+    }
+  };
 
   if (invoiceCustomization.showLetterHead && letterHeadBase64) {
     const props = doc.getImageProperties(letterHeadBase64);
@@ -304,8 +350,14 @@ export async function generateInvoicePDF(
     y = letterHeadHeight + 8;
   }
 
- 
+  // Footer belongs on every page, including this first one.
+  drawLetterHeadFooter();
+
   const drawLetterHeadOnNewPage = (): number => {
+    // Every new page gets its own footer at the bottom...
+    drawLetterHeadFooter();
+
+    // ...and, if configured, the header letterhead at the top.
     if (
       invoiceCustomization.showLetterHead &&
       letterHeadBase64 &&
@@ -317,12 +369,10 @@ export async function generateInvoicePDF(
     return MARGIN;
   };
 
-  
   let justBrokePage = false;
 
-
   const ensureSpace = (yCur: number, needed: number): number => {
-    if (yCur + needed > PAGE_H - MARGIN) {
+    if (yCur + needed > bottomLimit) {
       doc.addPage();
       justBrokePage = true;
       return drawLetterHeadOnNewPage();

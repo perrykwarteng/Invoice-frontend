@@ -160,14 +160,16 @@ export type OrgSettingsType = {
 export type invoiceCus = {
   primaryColor: string;
   secondaryColor: string;
-  letterHeadImg:null;
+  letterHeadHeaderImg: null;
+  letterHeadFooterImg: null;
   signatureImg: null;
 };
 
 export type InvoiceCustomization = {
   primaryColor: string;
   secondaryColor: string;
-  letterHeadImg: imageUrls | string | null;
+  letterHeadHeaderImg: imageUrls | string | File | null;
+  letterHeadFooterImg: imageUrls | string | File | null;
   signatureImg: imageUrls | string | null;
 
   showLogo: boolean;
