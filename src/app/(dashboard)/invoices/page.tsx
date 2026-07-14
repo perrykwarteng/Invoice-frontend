@@ -104,8 +104,8 @@ const summaryInitialState = {
 };
 
 const invoiceCustomizationInitialState: InvoiceCustomization = {
-  primaryColor: null,
-  secondaryColor: null,
+  primaryColor: "",
+  secondaryColor: "",
   letterHeadImg: null,
   signatureImg: null,
   showLogo: true,

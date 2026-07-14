@@ -146,8 +146,8 @@ export default function AddInvoice() {
 
   const [invoiceCustomSettings, setInvoiceCustomSettings] =
     useState<InvoiceCustomization>({
-      primaryColor: null,
-      secondaryColor: null,
+      primaryColor: "",
+      secondaryColor: "",
       letterHeadImg: null,
       signatureImg: null,
 
@@ -213,10 +213,10 @@ export default function AddInvoice() {
     }));
 
     setInvoiceCustomSettings({
-      primaryColor: settingsData.invoiceCustomization.primaryColor,
-      secondaryColor: settingsData.invoiceCustomization.secondaryColor,
-      letterHeadImg: settingsData.invoiceCustomization.letterHeadImg,
-      signatureImg: settingsData.invoiceCustomization.signatureImg,
+      primaryColor: settingsData?.invoiceCustomization?.primaryColor ?? "",
+      secondaryColor: settingsData?.invoiceCustomization?.secondaryColor ?? "",
+      letterHeadImg: settingsData?.invoiceCustomization?.letterHeadImg ?? null,
+      signatureImg: settingsData.invoiceCustomization?.signatureImg ?? null,
 
       showLogo: true,
       showLetterHead: true,

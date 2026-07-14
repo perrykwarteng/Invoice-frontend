@@ -158,15 +158,15 @@ export type OrgSettingsType = {
 };
 
 export type invoiceCus = {
-  primaryColor: string | null;
-  secondaryColor: string | null;
+  primaryColor: string;
+  secondaryColor: string;
   letterHeadImg:null;
   signatureImg: null;
 };
 
 export type InvoiceCustomization = {
-  primaryColor: string | null;
-  secondaryColor: string | null;
+  primaryColor: string;
+  secondaryColor: string;
   letterHeadImg: imageUrls | string | null;
   signatureImg: imageUrls | string | null;
 
