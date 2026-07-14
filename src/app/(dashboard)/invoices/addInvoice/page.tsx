@@ -1707,6 +1707,19 @@ export default function AddInvoice() {
                     </>
                   )}
                 </div>
+
+                {invoiceCustomSettings.showLetterHead &&
+                  letterHeadFooterSrc && (
+                    <div className="relative w-full h-16 sm:h-36 overflow-hidden">
+                      <Image
+                        src={letterHeadFooterSrc}
+                        alt="Letterhead"
+                        fill
+                        unoptimized
+                        className="object-fill"
+                      />
+                    </div>
+                  )}
               </div>
             </div>
           )}
