@@ -33,7 +33,8 @@ export const useSettingsStore = create<Settings>()(
         invoiceCustomization: {
           primaryColor: "",
           secondaryColor: "",
-          letterHeadImg: null,
+          letterHeadHeaderImg: null,
+          letterHeadFooterImg: null,
           signatureImg: null,
         },
         invoiceFooter: null,
